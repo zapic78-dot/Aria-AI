@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#6c63ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LinguaCall">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>LinguaCall — AI Language Tutor</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
@@ -887,6 +893,10 @@ window.speechSynthesis.onvoiceschanged = () => {};
 window.addEventListener('load', () => {
   synth.getVoices();
   startWaveAnim();
+  // Register service worker so this site installs as a PWA / wraps into an Android app
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch((err) => console.log('SW registration failed:', err));
+  }
 });
 </script>
 </body>
