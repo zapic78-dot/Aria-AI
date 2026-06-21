@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#2563eb" />
+<title>Mock Interview — Lingua Companion AI</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="ico" onclick="location.href='dashboard.html'">‹</button>
+    <h1>🎤 Mock N-400</h1>
+    <span style="width:24px"></span>
+  </header>
+
+  <main class="page">
+    <div class="card" id="intro">
+      <h3>N-400 interview practice</h3>
+      <p class="muted">The AI plays a USCIS officer. Answer out loud or by typing. After each answer you'll get feedback in plain English.</p>
+      <button class="btn" id="startBtn">Start mock interview</button>
+    </div>
+
+    <div id="play" style="display:none">
+      <div class="quiz-progress"><div id="prog" style="width:0"></div></div>
+      <div class="muted" id="counter"></div>
+      <h3 id="q" style="color:var(--blue-900);margin:10px 0"></h3>
+      <p class="muted" id="tip" style="font-size:13px;font-style:italic"></p>
+
+      <button class="btn secondary" id="speakBtn">🔊 Repeat question</button>
+      <div class="field" style="margin-top:10px">
+        <label>Your answer</label>
+        <textarea id="answer" rows="3" placeholder="Type your answer, or use the mic"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="micBtn">🎤 Voice</button>
+        <button class="btn" id="nextBtn">Next ›</button>
+      </div>
+      <div id="feedback" style="margin-top:14px"></div>
+    </div>
+
+    <div id="done" style="display:none">
+      <div class="card" style="text-align:center">
+        <div style="font-size:54px">🎉</div>
+        <h3>Mock interview complete</h3>
+        <p class="muted">Great work. The more you practice, the calmer the real day feels.</p>
+        <button class="btn" onclick="location.reload()">Practice again</button>
+        <a class="btn secondary" href="citizenship.html" style="margin-top:8px">Civics study</a>
+      </div>
+    </div>
+  </main>
+
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script type="module">
+  import { $, requireAuth, toast, speak, createRecognizer, N400_QUESTIONS, aiChat, bottomNav } from "./app.js";
+  document.getElementById("tabbar").outerHTML = bottomNav("civics");
+  await requireAuth();
+
+  let idx = 0, qs = [];
+  $("#startBtn").onclick = ()=>{
+    qs = [...N400_QUESTIONS].sort(()=>Math.random()-.5).slice(0,10);
+    idx = 0;
+    $("#intro").style.display="none"; $("#play").style.display="block";
+    show();
+  };
+
+  function show(){
+    const item = qs[idx];
+    $("#counter").textContent = `Question ${idx+1} of ${qs.length}`;
+    $("#prog").style.width = (idx/qs.length*100)+"%";
+    $("#q").textContent = item.q;
+    $("#tip").textContent = "Tip: "+item.tip;
+    $("#answer").value = "";
+    $("#feedback").innerHTML = "";
+    speak(item.q);
+  }
+  $("#speakBtn").onclick = ()=>speak(qs[idx].q);
+
+  let rec = null;
+  $("#micBtn").onclick = ()=>{
+    if(!rec){
+      rec = createRecognizer((t)=>{ $("#answer").value = t; }, ()=>{});
+      if(!rec) return toast("Voice not supported");
+    }
+    try{ rec.start(); toast("🎤 Listening…"); }catch(e){}
+  };
+
+  $("#nextBtn").onclick = async ()=>{
+    const ans = $("#answer").value.trim();
+    if(!ans){ toast("Type or speak an answer first"); return; }
+    $("#feedback").innerHTML = `<div class="muted"><span class="spin"></span> Getting feedback…</div>`;
+    try{
+      const fb = await aiChat([
+        { role:"user", content:`I'm practicing the US N-400 citizenship interview. The officer asked: "${qs[idx].q}" I answered: "${ans}". Reply in 2-3 short sentences: (1) Is the answer acceptable? (2) Any grammar fix. (3) One tip to sound more confident.` }
+      ], "citizenship");
+      $("#feedback").innerHTML = `<div class="card" style="background:var(--blue-50);border-color:var(--blue-100)">${escape(fb)}</div>`;
+    }catch(e){
+      $("#feedback").innerHTML = `<div class="muted">Could not connect to AI. Your answer was saved — try again in a moment.</div>`;
+    }
+    setTimeout(()=>{
+      idx++;
+      if(idx<qs.length) show();
+      else { $("#play").style.display="none"; $("#done").style.display="block"; }
+    }, 4000);
+  };
+
+  function escape(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+</script>
+</body>
+</html>

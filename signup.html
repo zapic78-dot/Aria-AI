@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#2563eb" />
+<title>Sign up — Lingua Companion AI</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <div class="auth-wrap">
+    <div class="brand">
+      <div class="brand-mark">L</div>
+      <div class="brand-name">Lingua Companion AI</div>
+    </div>
+    <h2>Create your account</h2>
+    <p class="sub">Free forever. Start practicing in 30 seconds.</p>
+
+    <form id="signupForm" autocomplete="on">
+      <div class="field">
+        <label for="name">Full name</label>
+        <input id="name" type="text" required autocomplete="name" />
+      </div>
+      <div class="field">
+        <label for="dob">Date of birth</label>
+        <input id="dob" type="date" required />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" required autocomplete="email" />
+      </div>
+      <div class="field">
+        <label for="password">Password (min 6 characters)</label>
+        <input id="password" type="password" required minlength="6" autocomplete="new-password" />
+      </div>
+      <button class="btn" type="submit" id="submitBtn">Create account</button>
+    </form>
+
+    <div class="switch">Already registered? <a href="login.html">Log in</a></div>
+  </div>
+</div>
+
+<script type="module">
+  import {
+    auth, createUserWithEmailAndPassword, updateProfile
+  } from "./firebase.js";
+  import { $, toast, setBusy, saveProfile, redirectIfAuthed } from "./app.js";
+
+  redirectIfAuthed();
+
+  $("#signupForm").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const name = $("#name").value.trim();
+    const dob = $("#dob").value;
+    const email = $("#email").value.trim();
+    const password = $("#password").value;
+    const btn = $("#submitBtn");
+    setBusy(btn,true,"Creating account");
+    try{
+      const { user } = await createUserWithEmailAndPassword(auth,email,password);
+      await updateProfile(user,{ displayName:name });
+      await saveProfile(user.uid,{
+        name, dob, email,
+        englishLevel:"Beginner",
+        citizenshipScore:0,
+        streak:0,
+        totalQuizzes:0,
+        createdAt: new Date().toISOString(),
+        isAdmin:false
+      });
+      location.href = "dashboard.html";
+    }catch(err){
+      toast(err.message.replace("Firebase: ",""));
+      setBusy(btn,false);
+    }
+  });
+</script>
+</body>
+</html>

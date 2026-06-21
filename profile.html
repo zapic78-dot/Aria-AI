@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#2563eb" />
+<title>Profile — Lingua Companion AI</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="ico" onclick="location.href='dashboard.html'">‹</button>
+    <h1>👤 Profile</h1>
+    <span style="width:24px"></span>
+  </header>
+
+  <main class="page">
+    <div class="card" style="text-align:center">
+      <div class="brand-mark" style="width:64px;height:64px;font-size:28px;margin:0 auto 10px"></div>
+      <h3 id="pname" style="margin:0">—</h3>
+      <p class="muted" id="pemail">—</p>
+    </div>
+
+    <div class="card">
+      <h3>Your stats</h3>
+      <div class="row"><span>🔥 Current streak</span><strong id="streak">0 days</strong></div>
+      <div class="row"><span>📈 English level</span><strong id="level">Beginner</strong></div>
+      <div class="row"><span>🇺🇸 Citizenship score</span><strong id="cscore">0%</strong></div>
+      <div class="row"><span>📝 Quizzes completed</span><strong id="totalq">0</strong></div>
+    </div>
+
+    <div class="card">
+      <h3>English level</h3>
+      <p class="muted">Pick the level that matches your comfort. Lessons adapt.</p>
+      <select id="levelSel" class="field" style="width:100%;padding:14px;border:1.5px solid var(--gray-300);border-radius:12px;font-size:16px;margin-top:8px">
+        <option>Beginner</option>
+        <option>Intermediate</option>
+        <option>Advanced</option>
+      </select>
+      <button class="btn" id="saveLevel" style="margin-top:10px">Save</button>
+    </div>
+
+    <button class="btn danger" id="logoutBtn">Log out</button>
+  </main>
+
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script type="module">
+  import { auth, signOut, doc, updateDoc } from "./firebase.js";
+  import { db } from "./firebase.js";
+  import { $, requireAuth, loadProfile, toast, bottomNav } from "./app.js";
+
+  document.getElementById("tabbar").outerHTML = bottomNav("profile");
+  const user = await requireAuth();
+  const profile = await loadProfile(user.uid) || {};
+
+  $(".brand-mark").textContent = (profile.name||"U")[0].toUpperCase();
+  $("#pname").textContent = profile.name || user.displayName || "User";
+  $("#pemail").textContent = profile.email || user.email;
+  $("#streak").textContent = (profile.streak||0)+" days";
+  $("#level").textContent = profile.englishLevel || "Beginner";
+  $("#cscore").textContent = (profile.citizenshipScore||0)+"%";
+  $("#totalq").textContent = profile.totalQuizzes||0;
+  $("#levelSel").value = profile.englishLevel || "Beginner";
+
+  $("#saveLevel").onclick = async ()=>{
+    await updateDoc(doc(db,"users",user.uid),{ englishLevel: $("#levelSel").value });
+    toast("Saved");
+    $("#level").textContent = $("#levelSel").value;
+  };
+
+  $("#logoutBtn").onclick = async ()=>{
+    await signOut(auth);
+    location.href = "index.html";
+  };
+</script>
+</body>
+</html>

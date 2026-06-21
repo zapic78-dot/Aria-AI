@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#2563eb" />
+<title>Lingua Companion AI — Learn English & Pass Citizenship</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <div class="auth-wrap">
+    <div class="brand" style="justify-content:center;margin-bottom:20px">
+      <div class="brand-mark">L</div>
+      <div>
+        <div class="brand-name" style="font-size:20px">Lingua Companion AI</div>
+        <div class="muted" style="font-size:12px">Learn English. Pass citizenship. Talk daily.</div>
+      </div>
+    </div>
+
+    <div class="hero" style="margin-top:10px">
+      <h2>Practice English with an AI that listens</h2>
+      <p>Pick a personality, talk by voice or text, and study for the US citizenship test — all in one app.</p>
+    </div>
+
+    <div class="tiles" style="margin-top:18px">
+      <div class="tile"><span class="ic">💬</span><h4>Voice chat</h4><p>Speak naturally with AI</p></div>
+      <div class="tile"><span class="ic">📖</span><h4>Grammar coach</h4><p>Real-time corrections</p></div>
+      <div class="tile"><span class="ic">🇺🇸</span><h4>100 USCIS questions</h4><p>Flashcards + quiz mode</p></div>
+      <div class="tile"><span class="ic">🎯</span><h4>Daily streak</h4><p>Build the habit</p></div>
+    </div>
+
+    <div style="margin-top:24px">
+      <a href="signup.html" class="btn">Create free account</a>
+      <a href="login.html" class="btn secondary" style="margin-top:10px">I already have an account</a>
+    </div>
+  </div>
+</div>
+<script type="module">
+  import { onAuthStateChanged } from "./firebase.js";
+  import { auth } from "./firebase.js";
+  onAuthStateChanged(auth,(u)=>{ if(u) location.href="dashboard.html"; });
+</script>
+<script type="module" src="app.js"></script>
+</body>
+</html>

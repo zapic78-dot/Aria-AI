@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#2563eb" />
+<title>Citizenship — Lingua Companion AI</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="ico" onclick="location.href='dashboard.html'">‹</button>
+    <h1>🇺🇸 Citizenship</h1>
+    <span style="width:24px"></span>
+  </header>
+
+  <main class="page">
+    <div class="tabs" id="tabs">
+      <button data-tab="flash" class="active">Flashcards</button>
+      <button data-tab="quiz">Quiz</button>
+      <button data-tab="read">Reading</button>
+      <button data-tab="write">Writing</button>
+      <button data-tab="sim">Test sim</button>
+    </div>
+
+    <!-- Flashcards -->
+    <section id="tab-flash">
+      <div class="muted" style="margin-bottom:8px"><span id="fcCounter">1 / 100</span> · Tap card to flip</div>
+      <div class="flashcard" id="fc">
+        <div class="flashcard-inner">
+          <div class="flashcard-front">
+            <div class="num">Question <span id="fcNum">1</span></div>
+            <div class="q" id="fcQ">Loading…</div>
+            <div class="cat" id="fcCat"></div>
+          </div>
+          <div class="flashcard-back">
+            <div class="num">Answer</div>
+            <div class="a" id="fcA"></div>
+            <div class="cat" id="fcCat2" style="color:var(--gray-500)"></div>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn secondary" id="prevBtn">‹ Prev</button>
+        <button class="btn" id="nextBtn">Next ›</button>
+      </div>
+      <button class="btn ghost" id="shuffleBtn" style="margin-top:8px">🔀 Shuffle</button>
+      <button class="btn ghost" id="speakBtn">🔊 Read aloud</button>
+    </section>
+
+    <!-- Quiz -->
+    <section id="tab-quiz" style="display:none">
+      <div id="quizIntro">
+        <div class="card">
+          <h3>10-question civics quiz</h3>
+          <p class="muted">Random questions from the official USCIS list. You need 6/10 to pass the real test.</p>
+          <button class="btn" id="startQuiz" style="margin-top:8px">Start quiz</button>
+        </div>
+      </div>
+      <div id="quizPlay" style="display:none">
+        <div class="quiz-progress"><div id="qProg" style="width:0"></div></div>
+        <div class="muted" id="qCount">Question 1 of 10</div>
+        <h3 id="qText" style="margin:6px 0 14px;color:var(--blue-900)"></h3>
+        <div id="qChoices"></div>
+      </div>
+      <div id="quizDone" style="display:none">
+        <div class="card" style="text-align:center">
+          <div style="font-size:54px" id="qEmoji">🎉</div>
+          <h3 id="qResult">Done!</h3>
+          <p class="muted" id="qResultSub"></p>
+          <button class="btn" id="quizAgain" style="margin-top:10px">Try again</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reading -->
+    <section id="tab-read" style="display:none">
+      <div class="card">
+        <h3>Reading test practice</h3>
+        <p class="muted">Read the sentence aloud. Tap 🔊 to hear it first.</p>
+        <h2 id="readSentence" style="margin:16px 0;color:var(--blue-900);font-size:22px;text-align:center"></h2>
+        <button class="btn secondary" id="readSpeak">🔊 Hear it</button>
+        <button class="btn" id="readNext" style="margin-top:8px">Next sentence</button>
+      </div>
+    </section>
+
+    <!-- Writing -->
+    <section id="tab-write" style="display:none">
+      <div class="card">
+        <h3>Writing test practice</h3>
+        <p class="muted">Listen, then write what you hear. The app checks for spelling and word order.</p>
+        <button class="btn secondary" id="writePlay">🔊 Play sentence</button>
+        <div class="field" style="margin-top:14px">
+          <label>Your answer</label>
+          <textarea id="writeInput" rows="3" placeholder="Type what you heard"></textarea>
+        </div>
+        <button class="btn" id="writeCheck">Check</button>
+        <div id="writeResult" style="margin-top:10px"></div>
+        <button class="btn ghost" id="writeNext" style="margin-top:8px">Next sentence</button>
+      </div>
+    </section>
+
+    <!-- Test Simulator -->
+    <section id="tab-sim" style="display:none">
+      <div class="card">
+        <h3>Citizenship test simulator</h3>
+        <p class="muted">Mimics the real interview: 10 civics questions out loud, you answer by voice. Pass with 6/10.</p>
+        <button class="btn" id="simStart">Start simulator</button>
+      </div>
+      <div id="simPlay" style="display:none">
+        <div class="quiz-progress"><div id="sProg" style="width:0"></div></div>
+        <div class="muted" id="sCount"></div>
+        <h3 id="sQ" style="color:var(--blue-900);margin:10px 0"></h3>
+        <button class="btn secondary" id="sSpeak">🔊 Repeat question</button>
+        <button class="btn" id="sMic" style="margin-top:8px">🎤 Answer by voice</button>
+        <div id="sHeard" class="muted" style="margin-top:10px"></div>
+        <button class="btn ghost" id="sSkip" style="margin-top:6px">Skip / next</button>
+      </div>
+      <div id="simDone" style="display:none"></div>
+    </section>
+  </main>
+
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<script type="module">
+  import {
+    $, $$, requireAuth, toast, speak, createRecognizer,
+    CIVICS_QUESTIONS, READING_SENTENCES, WRITING_SENTENCES,
+    getRandomCivics, makeChoices, saveQuizScore, logDailyGoal, bottomNav
+  } from "./app.js";
+
+  document.getElementById("tabbar").outerHTML = bottomNav("civics");
+  const user = await requireAuth();
+
+  /* Tabs */
+  $$("#tabs button").forEach(b=>{
+    b.onclick = ()=>{
+      $$("#tabs button").forEach(x=>x.classList.remove("active"));
+      b.classList.add("active");
+      ["flash","quiz","read","write","sim"].forEach(t=>{
+        $("#tab-"+t).style.display = (t===b.dataset.tab)?"block":"none";
+      });
+    };
+  });
+
+  /* Flashcards */
+  let order = CIVICS_QUESTIONS.map(q=>q.id);
+  let idx = 0;
+  function showCard(){
+    const q = CIVICS_QUESTIONS.find(x=>x.id===order[idx]);
+    $("#fcNum").textContent = q.id;
+    $("#fcQ").textContent = q.q;
+    $("#fcA").textContent = q.a.slice(0,3).join("  •  ");
+    $("#fcCat").textContent = q.cat;
+    $("#fcCat2").textContent = q.cat;
+    $("#fcCounter").textContent = `${idx+1} / ${order.length}`;
+    $("#fc").classList.remove("flipped");
+  }
+  $("#fc").onclick = ()=>$("#fc").classList.toggle("flipped");
+  $("#nextBtn").onclick = ()=>{ idx=(idx+1)%order.length; showCard(); logDailyGoal(user.uid,"flashcards"); };
+  $("#prevBtn").onclick = ()=>{ idx=(idx-1+order.length)%order.length; showCard(); };
+  $("#shuffleBtn").onclick = ()=>{ order.sort(()=>Math.random()-.5); idx=0; showCard(); toast("Shuffled"); };
+  $("#speakBtn").onclick = ()=>{
+    const q = CIVICS_QUESTIONS.find(x=>x.id===order[idx]);
+    speak(q.q);
+  };
+  showCard();
+
+  /* Quiz */
+  let quiz = [], qIdx=0, score=0;
+  $("#startQuiz").onclick = ()=>{
+    quiz = getRandomCivics(10).filter(q=>!q.a[0].startsWith("Answers will vary")&&!q.a[0].startsWith("Check "));
+    if(quiz.length<10) quiz = getRandomCivics(10);
+    qIdx=0; score=0;
+    $("#quizIntro").style.display="none"; $("#quizDone").style.display="none"; $("#quizPlay").style.display="block";
+    showQ();
+  };
+  function showQ(){
+    const q = quiz[qIdx];
+    $("#qCount").textContent = `Question ${qIdx+1} of ${quiz.length}`;
+    $("#qProg").style.width = ((qIdx)/quiz.length*100)+"%";
+    $("#qText").textContent = q.q;
+    const choices = makeChoices(q);
+    const wrap = $("#qChoices"); wrap.innerHTML="";
+    choices.forEach(c=>{
+      const b = document.createElement("button");
+      b.className = "choice"; b.textContent = c;
+      b.onclick = ()=>{
+        const correct = q.a.some(ans=>ans.toLowerCase()===c.toLowerCase());
+        b.classList.add(correct?"correct":"wrong");
+        if(!correct){
+          [...wrap.children].forEach(ch=>{
+            if(q.a.some(ans=>ans.toLowerCase()===ch.textContent.toLowerCase())) ch.classList.add("correct");
+          });
+        }
+        if(correct) score++;
+        [...wrap.children].forEach(ch=>ch.disabled=true);
+        setTimeout(()=>{
+          qIdx++;
+          if(qIdx<quiz.length) showQ();
+          else finishQuiz();
+        },900);
+      };
+      wrap.appendChild(b);
+    });
+  }
+  async function finishQuiz(){
+    $("#quizPlay").style.display="none"; $("#quizDone").style.display="block";
+    const pct = Math.round(score/quiz.length*100);
+    const pass = score>=6;
+    $("#qEmoji").textContent = pass?"🎉":"📚";
+    $("#qResult").textContent = pass?`You passed! ${score}/${quiz.length}`:`Keep practicing: ${score}/${quiz.length}`;
+    $("#qResultSub").textContent = pct+"% — "+(pass?"You'd pass the real civics test today.":"You need 6/10 to pass the real test. Try again!");
+    await saveQuizScore(user.uid, score, quiz.length);
+    logDailyGoal(user.uid,"quiz");
+  }
+  $("#quizAgain").onclick = ()=>{ $("#quizDone").style.display="none"; $("#quizIntro").style.display="block"; };
+
+  /* Reading */
+  let rIdx = 0;
+  function showRead(){ $("#readSentence").textContent = READING_SENTENCES[rIdx]; }
+  $("#readSpeak").onclick = ()=>speak(READING_SENTENCES[rIdx]);
+  $("#readNext").onclick = ()=>{ rIdx=(rIdx+1)%READING_SENTENCES.length; showRead(); };
+  showRead();
+
+  /* Writing */
+  let wIdx = 0;
+  $("#writePlay").onclick = ()=>speak(WRITING_SENTENCES[wIdx]);
+  $("#writeCheck").onclick = ()=>{
+    const target = WRITING_SENTENCES[wIdx].toLowerCase().replace(/[^\w\s]/g,"").trim();
+    const got = $("#writeInput").value.toLowerCase().replace(/[^\w\s]/g,"").trim();
+    const match = got===target;
+    const r = $("#writeResult");
+    if(match) r.innerHTML = `<div class="pill green">✓ Correct!</div>`;
+    else r.innerHTML = `<div class="pill amber">Almost!</div><div class="muted" style="margin-top:6px">Correct: <strong>${WRITING_SENTENCES[wIdx]}</strong></div>`;
+  };
+  $("#writeNext").onclick = ()=>{
+    wIdx=(wIdx+1)%WRITING_SENTENCES.length;
+    $("#writeInput").value=""; $("#writeResult").innerHTML="";
+  };
+
+  /* Simulator */
+  let sim=[], sIdx=0, sScore=0, sRec=null;
+  $("#simStart").onclick = ()=>{
+    sim = getRandomCivics(10).filter(q=>!q.a[0].startsWith("Answers will vary")&&!q.a[0].startsWith("Check "));
+    if(sim.length<10) sim = getRandomCivics(10);
+    sIdx=0; sScore=0;
+    $("#simStart").parentElement.style.display="none";
+    $("#simDone").style.display="none";
+    $("#simPlay").style.display="block";
+    showSim();
+  };
+  function showSim(){
+    const q = sim[sIdx];
+    $("#sCount").textContent = `Question ${sIdx+1} of ${sim.length}`;
+    $("#sProg").style.width = (sIdx/sim.length*100)+"%";
+    $("#sQ").textContent = q.q;
+    $("#sHeard").textContent = "";
+    speak(q.q);
+  }
+  $("#sSpeak").onclick = ()=>speak(sim[sIdx].q);
+  $("#sMic").onclick = ()=>{
+    if(!sRec){
+      sRec = createRecognizer((text)=>{
+        $("#sHeard").innerHTML = `You said: "<strong>${text}</strong>"`;
+        const q = sim[sIdx];
+        const hit = q.a.some(a=>text.toLowerCase().includes(a.toLowerCase().replace(/\(.*?\)/g,"").trim()));
+        if(hit){ sScore++; $("#sHeard").innerHTML += ` <span class="pill green">Correct</span>`; }
+        else { $("#sHeard").innerHTML += ` <span class="pill amber">Try again — correct: ${q.a[0]}</span>`; }
+        setTimeout(nextSim, 1800);
+      }, ()=>{});
+    }
+    if(!sRec){ toast("Voice not supported"); return; }
+    try{ sRec.start(); $("#sHeard").textContent="🎤 Listening…"; }catch(e){}
+  };
+  $("#sSkip").onclick = nextSim;
+  function nextSim(){
+    sIdx++;
+    if(sIdx<sim.length) showSim();
+    else finishSim();
+  }
+  async function finishSim(){
+    $("#simPlay").style.display="none";
+    const pass = sScore>=6;
+    $("#simDone").style.display="block";
+    $("#simDone").innerHTML = `<div class="card" style="text-align:center">
+      <div style="font-size:54px">${pass?"🇺🇸":"📚"}</div>
+      <h3>${pass?"You passed the simulation!":"Keep practicing"}</h3>
+      <p class="muted">Score: ${sScore} / ${sim.length}</p>
+      <button class="btn" onclick="location.reload()">Try again</button>
+    </div>`;
+    await saveQuizScore(user.uid, sScore, sim.length);
+    logDailyGoal(user.uid,"quiz");
+  }
+</script>
+</body>
+</html>

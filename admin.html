@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#2563eb" />
+<title>Admin — Lingua Companion AI</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button class="ico" onclick="location.href='dashboard.html'">‹</button>
+    <h1>🛠️ Admin</h1>
+    <span style="width:24px"></span>
+  </header>
+
+  <main class="page">
+    <div class="card">
+      <h3>Users</h3>
+      <p class="muted">All registered users and their progress.</p>
+      <div id="users">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h3>Recent quiz scores</h3>
+      <div id="scores">Loading…</div>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+  import { db, collection, getDocs, query, orderBy } from "./firebase.js";
+  import { $, requireAuth, loadProfile, toast } from "./app.js";
+
+  const user = await requireAuth();
+  const profile = await loadProfile(user.uid);
+  if(!profile?.isAdmin){
+    toast("Admin access required");
+    setTimeout(()=>location.href="dashboard.html",1200);
+  } else {
+    loadAll();
+  }
+
+  async function loadAll(){
+    const snap = await getDocs(collection(db,"users"));
+    const list = [];
+    snap.forEach(d=>list.push({id:d.id,...d.data()}));
+    $("#users").innerHTML = list.length===0
+      ? `<p class="muted">No users yet.</p>`
+      : list.map(u=>`
+        <div class="row">
+          <div>
+            <strong>${escape(u.name||"—")}</strong><br>
+            <span class="muted" style="font-size:12px">${escape(u.email||"")}</span>
+          </div>
+          <div style="text-align:right">
+            <div class="pill">🔥 ${u.streak||0}</div>
+            <div class="pill green" style="margin-top:4px">🇺🇸 ${u.citizenshipScore||0}%</div>
+          </div>
+        </div>`).join("");
+
+    // Load quiz scores from each user
+    const allScores = [];
+    for(const u of list){
+      try{
+        const qs = await getDocs(collection(db,"users",u.id,"quizzes"));
+        qs.forEach(q=>allScores.push({user:u.name||u.email,...q.data()}));
+      }catch(e){}
+    }
+    allScores.sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    $("#scores").innerHTML = allScores.length===0
+      ? `<p class="muted">No quiz attempts yet.</p>`
+      : allScores.slice(0,20).map(s=>`
+        <div class="row">
+          <div><strong>${escape(s.user)}</strong></div>
+          <div class="pill ${s.percent>=60?'green':'amber'}">${s.score}/${s.total} · ${s.percent}%</div>
+        </div>`).join("");
+  }
+
+  function escape(s){return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+</script>
+</body>
+</html>
