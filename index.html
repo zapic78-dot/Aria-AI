@@ -218,10 +218,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
     <button class="close-btn" onclick="closeSettings()"><i class="ti ti-x"></i></button>
     <div>
       <div class="drawer-title">Settings</div>
-      <div class="drawer-sub">Add your ElevenLabs key for a real human voice. Without it, Aria uses your browser's built-in voice.</div>
+      <div class="drawer-sub">REQUIRED: Add your free Google Gemini API key so Aria can talk back. Get one free at aistudio.google.com/apikey — 1,500 free messages every day.</div>
     </div>
     <div class="field">
-      <label>ElevenLabs API key (realistic female voice)</label>
+      <label>Google Gemini API key (REQUIRED — free & unlimited)</label>
+      <input id="anthKey" type="password" placeholder="AIza... paste from aistudio.google.com/apikey"/>
+    </div>
+    <div class="field">
+      <label>ElevenLabs API key (OPTIONAL — only if you want a paid human voice)</label>
       <input id="elKey" type="password" placeholder="Paste your key from elevenlabs.io"/>
     </div>
     <div class="field">
@@ -233,7 +237,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       <input id="extraCtx" placeholder="e.g. I'm a truck driver from Seattle, love talking about business"/>
     </div>
     <button class="save-btn" onclick="saveSettings()">Save settings</button>
-    <p style="font-size:12px;color:var(--muted)">Get a free ElevenLabs key at <a href="https://elevenlabs.io" target="_blank" style="color:var(--purple2)">elevenlabs.io</a> · Your keys stay on this device only</p>
+    <p style="font-size:12px;color:var(--muted)">Get your free Gemini key at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--purple2)">aistudio.google.com/apikey</a> · 1,500 free messages per day · Your key stays on this device only</p>
   </div>
 </div>
 
@@ -287,6 +291,7 @@ function enterApp(name,dob){
   document.getElementById('loginScreen').classList.remove('active');
   document.getElementById('mainScreen').classList.add('active');
   renderMem();
+  const ak=ls('aria_anthkey');if(ak) document.getElementById('anthKey').value=ak;
   const ek=ls('aria_elkey');if(ek) document.getElementById('elKey').value=ek;
   const ev=ls('aria_elvoice');if(ev) document.getElementById('elVoice').value=ev;
   const ec=ls('aria_ctx');if(ec) document.getElementById('extraCtx').value=ec;
@@ -308,9 +313,11 @@ function openSettings(){document.getElementById('settingsOverlay').classList.add
 function closeSettings(){document.getElementById('settingsOverlay').classList.remove('open')}
 function closeSettingsOutside(e){if(e.target===document.getElementById('settingsOverlay')) closeSettings()}
 function saveSettings(){
+  const ak=document.getElementById('anthKey').value.trim();
   const k=document.getElementById('elKey').value.trim();
   const v=document.getElementById('elVoice').value.trim();
   const c=document.getElementById('extraCtx').value.trim();
+  if(ak) ls('aria_anthkey',ak);
   if(k) ls('aria_elkey',k);
   // Only save voice ID if it looks like a real ID (no spaces, no words like Rachel/default)
   if(v&&!v.includes(' ')&&!v.toLowerCase().includes('rachel')&&!v.toLowerCase().includes('default')){
@@ -450,22 +457,43 @@ NOW BE REAL. Be Aria. The user just called you. Be genuinely happy to hear from 
 // ════════════════════════════════════════════
 async function callClaude(userText){
   if(S.busy) return;
+  const apiKey=ls('aria_anthkey');
+  if(!apiKey||!apiKey.trim()){
+    setStatus('⚠ Add your free Gemini key in Settings (gear icon)');
+    setSpeaking(false);S.busy=false;
+    openSettings();
+    return;
+  }
   S.busy=true;
   setStatus('Aria is thinking...');
   setSpeaking(true);
   const isGreet=userText==='__GREET__';
-  const msgs=isGreet
-    ?[{role:'user',content:'(The call just connected. Greet me warmly. Be natural and real. Ask how I am or what\'s on my mind today.)'}]
-    :[...S.msgs.slice(-30),{role:'user',content:userText}];
+  // Build Gemini-format messages
+  const history=isGreet?[]:S.msgs.slice(-30);
+  const contents=history.map(m=>({
+    role:m.role==='aria'?'model':'user',
+    parts:[{text:m.content}]
+  }));
+  const userMsg=isGreet
+    ?'(The call just connected. Greet me warmly. Be natural and real. Ask how I am or what\'s on my mind today.)'
+    :userText;
+  contents.push({role:'user',parts:[{text:userMsg}]});
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
+    const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(apiKey.trim()),{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1024,system:buildSystem(),messages:msgs})
+      body:JSON.stringify({
+        system_instruction:{parts:[{text:buildSystem()}]},
+        contents:contents,
+        generationConfig:{maxOutputTokens:1024,temperature:0.85}
+      })
     });
-    if(!res.ok){const e=await res.json();throw new Error(e.error?.message||res.status)}
+    if(!res.ok){
+      const e=await res.json().catch(()=>({error:{message:'HTTP '+res.status}}));
+      throw new Error(e.error?.message||('HTTP '+res.status));
+    }
     const data=await res.json();
-    let text=data.content?.find(c=>c.type==='text')?.text||"I'm here, say that again?";
+    let text=data.candidates?.[0]?.content?.parts?.[0]?.text||"I'm here, say that again?";
     // Extract memories
     const mems=[...text.matchAll(/\[MEM:(\{[^}]*\})\]/g)];
     for(const m of mems){
@@ -475,10 +503,10 @@ async function callClaude(userText){
     addMsg('aria',text);
     await speak(text);
   }catch(e){
-    console.error(e);
-    setStatus('Connection error — check internet');
+    console.error('Aria error:',e);
+    setStatus('Error: '+(e.message||'connection failed').slice(0,80));
     setSpeaking(false);S.busy=false;
-    if(S.inCall) setTimeout(startRec,500);
+    if(S.inCall) setTimeout(startRec,1500);
     return;
   }
   S.busy=false;
@@ -541,13 +569,22 @@ function getBrowserVoice(lang){
 function browserSpeak(text){
   return new Promise(res=>{
     speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(text);
-    u.voice=getBrowserVoice(S.lang);
-    u.rate=S.level==='beginner'?0.8:S.level==='professional'?1.0:0.92;
-    u.pitch=1.1;u.volume=1;
-    setStatus('Aria is speaking...');
-    u.onend=res;u.onerror=res;
-    speechSynthesis.speak(u);
+    setTimeout(()=>{
+      const u=new SpeechSynthesisUtterance(text);
+      const v=getBrowserVoice(S.lang);
+      if(v) u.voice=v;
+      u.rate=S.level==='beginner'?0.8:S.level==='professional'?1.0:0.92;
+      u.pitch=1.1;u.volume=1;
+      setStatus('Aria is speaking...');
+      u.onend=()=>res();
+      u.onerror=()=>res();
+      // Chrome bug fix: re-trigger if synthesis gets stuck
+      speechSynthesis.speak(u);
+      const watchdog=setInterval(()=>{
+        if(!speechSynthesis.speaking){clearInterval(watchdog);res()}
+      },100);
+      setTimeout(()=>{clearInterval(watchdog);speechSynthesis.cancel();res()},30000);
+    },100);
   });
 }
 
