@@ -130,22 +130,41 @@
     border-bottom-left-radius: 6px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.05);
   }
-  .mic-btn {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #a855f7, #7c3aed);
-    border: none;
+  .call-btn {
+    width: 100%;
+    padding: 22px;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
     color: white;
-    font-size: 32px;
+    border: none;
+    font-size: 20px;
+    font-weight: 700;
     align-self: center;
-    margin: 12px auto 0;
-    box-shadow: 0 6px 20px rgba(124,58,237,0.4);
+    margin: 16px auto 8px;
+    box-shadow: 0 6px 20px rgba(34,197,94,0.4);
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: inherit;
   }
-  .mic-btn.listening {
-    animation: pulse 1.2s infinite;
+  .call-btn.active {
     background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 6px 20px rgba(239,68,68,0.4);
+    animation: pulse 2s infinite;
+  }
+  .call-btn:active { transform: scale(0.98); }
+  .type-toggle {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 13px;
+    margin: 4px auto;
+    cursor: pointer;
+    text-decoration: underline;
+    display: block;
+    font-family: inherit;
   }
   @keyframes pulse {
     0%, 100% { transform: scale(1); }
@@ -329,9 +348,12 @@
     <div class="chat-area">
       <div class="chat-msgs" id="chat-msgs"></div>
       <div class="status-bar" id="chat-status"></div>
-      <button class="mic-btn" id="mic-btn" onclick="toggleMic()">🎤</button>
-      <div class="text-input-row">
-        <input id="text-input" placeholder="Or type here..." onkeydown="if(event.key==='Enter')sendText()">
+      <button class="call-btn" id="call-btn" onclick="toggleCall()">
+        <span style="font-size:24px;">📞</span>&nbsp;Start Call
+      </button>
+      <button class="type-toggle" onclick="toggleTextInput()">or type instead</button>
+      <div class="text-input-row" id="text-input-row" style="display:none;">
+        <input id="text-input" placeholder="Type here..." onkeydown="if(event.key==='Enter')sendText()">
         <button onclick="sendText()">Send</button>
       </div>
     </div>
@@ -552,10 +574,15 @@ let state = {
   chatContext: null,
   currentQuizIdx: 0,
   currentLessonIdx: 0,
+  voices: []
+};
+
+// Call state — continuous voice conversation
+let callState = {
+  active: false,
+  isSpeaking: false,
   isListening: false,
-  recognition: null,
-  voices: [],
-  selectedVoiceName: null
+  recognition: null
 };
 
 // ============================================================
@@ -605,10 +632,7 @@ async function handleSignup() {
   const userKey = 'aria_user_' + name;
   if (localStorage.getItem(userKey)) { err.textContent = 'That name is already taken. Try logging in.'; return; }
   const hash = await hashPassword(pw);
-  const user = {
-    name, displayName, dob, passwordHash: hash,
-    facts: {}, history: [], createdAt: Date.now()
-  };
+  const user = { name, displayName, dob, passwordHash: hash, facts: {}, history: [], createdAt: Date.now() };
   localStorage.setItem(userKey, JSON.stringify(user));
   state.currentUser = name;
   localStorage.setItem('aria_last_user', name);
@@ -668,10 +692,7 @@ function chooseMode(m) {
   if (m === 'kids') goto('screen-kid-voice');
   else goto('screen-topic');
 }
-function chooseKidVoice(v) {
-  state.kidVoice = v;
-  goto('screen-topic');
-}
+function chooseKidVoice(v) { state.kidVoice = v; goto('screen-topic'); }
 function chooseTopic(t) {
   state.topic = t;
   if (t === 'grammar' || t === 'chat') goto('screen-level');
@@ -685,7 +706,7 @@ function chooseLevel(l) {
 }
 
 // ============================================================
-// CHAT INIT
+// CHAT INIT — enter screen and auto-start the call
 // ============================================================
 function startChat() {
   state.chatContext = 'chat';
@@ -693,12 +714,7 @@ function startChat() {
   document.getElementById('chat-title').textContent = titles[state.topic] || 'Chat with Aria';
   document.getElementById('chat-msgs').innerHTML = '';
   goto('screen-chat');
-  const u = getUser();
-  const greeting = state.mode === 'kids'
-    ? `Hi ${u.displayName}! I'm so happy to see you. Do you want to play and talk with me?`
-    : `Hi ${u.displayName}, it's really nice to talk with you. What would you like to chat about today?`;
-  showAriaMsg(greeting);
-  speak(greeting);
+  setTimeout(startCall, 500);
 }
 function startGrammar() {
   state.chatContext = 'grammar-lesson';
@@ -706,93 +722,307 @@ function startGrammar() {
   document.getElementById('chat-title').textContent = 'Grammar (' + state.level + ')';
   document.getElementById('chat-msgs').innerHTML = '';
   goto('screen-chat');
-  const u = getUser();
-  const intro = `Hi ${u.displayName}! Let's learn grammar together. We will go slowly, one lesson at a time. Say "next" when you want a new lesson, or ask me any question.`;
-  showAriaMsg(intro); speak(intro);
-  setTimeout(()=>presentLesson(), 4500);
-}
-function presentLesson() {
-  if (state.currentLessonIdx >= GRAMMAR_LESSONS.length) {
-    const done = "You finished all the lessons. Amazing job! Do you want to start again? Say yes to begin.";
-    showAriaMsg(done); speak(done);
-    state.currentLessonIdx = 0;
-    return;
-  }
-  const l = GRAMMAR_LESSONS[state.currentLessonIdx];
-  const msg = `Lesson ${state.currentLessonIdx+1}: ${l.title}. ${l.explain}`;
-  showAriaMsg(msg); speak(msg);
-  state.currentLessonIdx++;
+  setTimeout(startCall, 500);
 }
 function startCitizenship() {
+  state.chatContext = 'citizenship-menu';
   document.getElementById('chat-title').textContent = 'US Citizenship';
   document.getElementById('chat-msgs').innerHTML = '';
   goto('screen-chat');
+  setTimeout(startCall, 500);
+}
+
+// ============================================================
+// CALL CONTROL — one tap starts, and it flows automatically
+// ============================================================
+function toggleCall() { if (callState.active) endCall(); else startCall(); }
+
+function startCall() {
+  if (callState.active) return;
+  if (!getApiKey()) {
+    const msg = "Please add your Gemini API key first. Tap End, then Settings, then paste your key.";
+    showAriaMsg(msg);
+    setStatus(msg);
+    return;
+  }
+  callState.active = true;
+  updateCallButton();
+  greetForContext();
+}
+
+function endCall() {
+  callState.active = false;
+  stopListening();
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  callState.isSpeaking = false;
+  updateCallButton();
+  setStatus('');
+}
+
+function updateCallButton() {
+  const btn = document.getElementById('call-btn');
+  if (!btn) return;
+  if (callState.active) {
+    btn.classList.add('active');
+    btn.innerHTML = '<span style="font-size:24px;">🔴</span>&nbsp;End Call';
+  } else {
+    btn.classList.remove('active');
+    btn.innerHTML = '<span style="font-size:24px;">📞</span>&nbsp;Start Call';
+  }
+}
+
+function greetForContext() {
   const u = getUser();
-  const intro = `Hi ${u.displayName}. Let's practice for your citizenship interview. Say "civics" to start the 100 civics questions, or say "interview" to practice the personal N-400 questions. You can also just ask me anything.`;
-  showAriaMsg(intro); speak(intro);
-  state.chatContext = 'citizenship-menu';
+  if (state.chatContext === 'chat') {
+    let g;
+    if (state.mode === 'kids') {
+      g = 'Hi ' + u.displayName + '! I am so happy to talk with you. What do you want to talk about today?';
+    } else if (state.topic === 'job') {
+      g = 'Hi ' + u.displayName + '. Let us practice for work. Do you want to write an email, practice an interview, or something else?';
+    } else {
+      const jobLine = (u.facts && u.facts.job) ? ' How is work going as ' + u.facts.job + '?' : '';
+      g = 'Hi ' + u.displayName + ', it is really nice to talk with you again.' + jobLine + ' What would you like to chat about today?';
+    }
+    showAriaMsg(g); speak(g);
+  } else if (state.chatContext === 'grammar-lesson') {
+    const first = GRAMMAR_LESSONS[0];
+    state.currentLessonIdx = 1;
+    const msg = 'Hi ' + u.displayName + '! Let us learn grammar together. We will go one lesson at a time. When you are ready for the next lesson, just say next. Okay, lesson 1: ' + first.title + '. ' + first.explain;
+    showAriaMsg(msg); speak(msg);
+  } else if (state.chatContext === 'citizenship-menu') {
+    const msg = 'Hi ' + u.displayName + '. Let us practice for the citizenship interview. Say civics for the 100 civics questions, or say interview for the personal N-400 questions.';
+    showAriaMsg(msg); speak(msg);
+  }
+}
+
+// ============================================================
+// SPEAK — stops mic, speaks, then restarts mic automatically
+// ============================================================
+function speak(text) {
+  if (!('speechSynthesis' in window)) {
+    if (callState.active) setTimeout(startListening, 300);
+    return;
+  }
+  stopListening();
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  const v = pickBestVoice();
+  if (v) u.voice = v;
+  const speed = parseFloat(localStorage.getItem('aria_speed') || '1.0');
+  if (state.mode === 'kids') u.rate = 0.95 * speed;
+  else if (state.level === 'beginner') u.rate = 0.85 * speed;
+  else if (state.level === 'intermediate') u.rate = 0.95 * speed;
+  else u.rate = 1.0 * speed;
+  if (state.mode === 'kids') u.pitch = state.kidVoice === 'girl' ? 1.6 : 0.8;
+  else u.pitch = 1.05;
+  u.volume = 1.0;
+  callState.isSpeaking = true;
+  setStatus('Aria is speaking...');
+  u.onend = () => {
+    callState.isSpeaking = false;
+    setStatus('');
+    if (callState.active) setTimeout(startListening, 250);
+  };
+  u.onerror = () => {
+    callState.isSpeaking = false;
+    setStatus('');
+    if (callState.active) setTimeout(startListening, 300);
+  };
+  window.speechSynthesis.speak(u);
+}
+
+// ============================================================
+// LISTEN — automatic loop while call is active
+// ============================================================
+function startListening() {
+  if (!callState.active) return;
+  if (callState.isSpeaking) return;
+  if (callState.isListening) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { setStatus('Voice not supported. Please type instead.'); return; }
+  callState.recognition = new SR();
+  callState.recognition.lang = 'en-US';
+  callState.recognition.interimResults = false;
+  callState.recognition.continuous = false;
+  callState.recognition.maxAlternatives = 1;
+  callState.recognition.onresult = (e) => {
+    const txt = e.results[0][0].transcript;
+    callState.isListening = false;
+    setStatus('');
+    handleUserMessage(txt);
+  };
+  callState.recognition.onerror = (e) => {
+    const wasListening = callState.isListening;
+    callState.isListening = false;
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+      setStatus('Mic blocked. Please allow microphone.');
+      endCall();
+      return;
+    }
+    if (callState.active && !callState.isSpeaking && wasListening) {
+      setTimeout(() => { if (callState.active && !callState.isSpeaking && !callState.isListening) startListening(); }, 700);
+    }
+  };
+  callState.recognition.onend = () => {
+    const wasListening = callState.isListening;
+    callState.isListening = false;
+    if (callState.active && !callState.isSpeaking && wasListening) {
+      setTimeout(() => { if (callState.active && !callState.isSpeaking && !callState.isListening) startListening(); }, 250);
+    }
+  };
+  try {
+    callState.recognition.start();
+    callState.isListening = true;
+    setStatus('Listening... just talk');
+  } catch(e) {
+    callState.isListening = false;
+    setTimeout(() => { if (callState.active && !callState.isSpeaking && !callState.isListening) startListening(); }, 500);
+  }
+}
+function stopListening() {
+  if (callState.recognition && callState.isListening) {
+    try { callState.recognition.abort(); } catch(e){}
+  }
+  callState.isListening = false;
+}
+
+// ============================================================
+// CITIZENSHIP: civics quiz
+// ============================================================
+function askCivics() {
+  if (state.currentQuizIdx >= CIVICS_QUESTIONS.length) {
+    const done = "You went through all 100 civics questions! Say civics to start again, or interview for the personal questions.";
+    showAriaMsg(done); speak(done);
+    state.chatContext = 'citizenship-menu';
+    return;
+  }
+  const q = CIVICS_QUESTIONS[state.currentQuizIdx];
+  const msg = 'Question ' + (state.currentQuizIdx+1) + ' of 100. ' + q.q;
+  showAriaMsg(msg); speak(msg);
+}
+function checkCivicsAnswer(userAnswer) {
+  const lower = userAnswer.toLowerCase().trim();
+  if (lower === 'stop' || lower === 'menu' || lower.includes('back to menu')) {
+    state.chatContext = 'citizenship-menu';
+    const back = 'Okay, back to the menu. Say civics or interview to continue.';
+    showAriaMsg(back); speak(back);
+    return;
+  }
+  const q = CIVICS_QUESTIONS[state.currentQuizIdx];
+  let feedback;
+  const isSkip = lower === 'skip' || lower === 'next' || lower.startsWith('skip ') || lower.startsWith('next ') || lower.includes("don't know") || lower.includes("do not know") || lower === 'no idea';
+  if (isSkip) {
+    feedback = 'Okay, no problem. The answer is: ' + q.a[0] + '.';
+  } else {
+    const correct = q.a.some(a => {
+      const al = a.toLowerCase();
+      const keywords = al.split(/[\s,()]+/).filter(w => w.length > 3);
+      return keywords.some(k => lower.includes(k)) || lower.includes(al);
+    });
+    if (correct) feedback = 'Yes! Very good. The answer is: ' + q.a[0] + '.';
+    else feedback = "That's okay, do not worry. The correct answer is: " + q.a[0] + '.';
+  }
+  state.currentQuizIdx++;
+  if (state.currentQuizIdx < CIVICS_QUESTIONS.length) {
+    const nextQ = CIVICS_QUESTIONS[state.currentQuizIdx];
+    const full = feedback + ' Next question, number ' + (state.currentQuizIdx+1) + ': ' + nextQ.q;
+    showAriaMsg(full); speak(full);
+  } else {
+    const done = feedback + ' You went through all 100 civics questions! Amazing job.';
+    showAriaMsg(done); speak(done);
+    state.chatContext = 'citizenship-menu';
+  }
+}
+
+// ============================================================
+// CITIZENSHIP: N-400 interview
+// ============================================================
+function askN400() {
+  if (state.currentQuizIdx >= N400_QUESTIONS.length) {
+    const done = 'You practiced all the interview questions! Great work. Say civics or interview to continue.';
+    showAriaMsg(done); speak(done);
+    state.chatContext = 'citizenship-menu';
+    return;
+  }
+  const q = N400_QUESTIONS[state.currentQuizIdx];
+  const msg = 'Interview question ' + (state.currentQuizIdx+1) + '. ' + q;
+  showAriaMsg(msg); speak(msg);
+}
+async function evaluateN400Answer(userAnswer) {
+  const lower = userAnswer.toLowerCase().trim();
+  if (lower === 'stop' || lower === 'menu' || lower.includes('back to menu')) {
+    state.chatContext = 'citizenship-menu';
+    const back = 'Okay, back to the menu. Say civics or interview to continue.';
+    showAriaMsg(back); speak(back);
+    return;
+  }
+  const q = N400_QUESTIONS[state.currentQuizIdx];
+  let feedback;
+  if (lower === 'skip' || lower === 'next' || lower.includes("don't know") || lower.includes("do not know")) {
+    feedback = 'Okay, skipping this one.';
+  } else {
+    const prompt = 'You are Aria, a calm patient warm English tutor helping practice for the US citizenship interview. Question: "' + q + '". Answer given: "' + userAnswer + '". In ONE short warm sentence say if the answer is clear enough, and gently correct any small grammar mistake. Do not include the next question.';
+    feedback = await callGeminiCustom(prompt);
+  }
+  state.currentQuizIdx++;
+  if (state.currentQuizIdx < N400_QUESTIONS.length) {
+    const nextQ = N400_QUESTIONS[state.currentQuizIdx];
+    const full = feedback + ' Next question, number ' + (state.currentQuizIdx+1) + ': ' + nextQ;
+    showAriaMsg(full); speak(full);
+  } else {
+    const done = feedback + ' You practiced all the interview questions! Great work.';
+    showAriaMsg(done); speak(done);
+    state.chatContext = 'citizenship-menu';
+  }
 }
 function handleCitizenshipMenu(text) {
   const t = text.toLowerCase();
   if (t.includes('civic')) {
     state.chatContext = 'civics-quiz';
     state.currentQuizIdx = 0;
-    setTimeout(askCivics, 800);
+    askCivics();
   } else if (t.includes('interview') || t.includes('n-400') || t.includes('n400') || t.includes('personal')) {
     state.chatContext = 'n400-quiz';
     state.currentQuizIdx = 0;
-    setTimeout(askN400, 800);
+    askN400();
+  } else if (t.includes('stop') || t.includes('end call') || t.includes('go home')) {
+    endCall();
   } else {
     callGemini(text);
   }
 }
-function askCivics() {
-  if (state.currentQuizIdx >= CIVICS_QUESTIONS.length) {
-    const done = "You went through all 100 civics questions! That is amazing. Say 'civics' to start over, or 'interview' to try the personal questions.";
-    showAriaMsg(done); speak(done);
-    state.chatContext = 'citizenship-menu';
+
+// ============================================================
+// GRAMMAR
+// ============================================================
+async function handleGrammarInput(text) {
+  const lower = text.toLowerCase().trim();
+  if (lower === 'stop' || lower === 'end call' || lower.includes('go home')) { endCall(); return; }
+  const wantsNext = lower === 'next' || lower.startsWith('next ') || lower === 'ready' || lower === 'yes' || lower.startsWith('yes ') || lower === 'ok' || lower === 'okay';
+  if (wantsNext) {
+    if (state.currentLessonIdx >= GRAMMAR_LESSONS.length) {
+      const done = 'You finished all the grammar lessons! Amazing. Say restart to go through them again.';
+      showAriaMsg(done); speak(done);
+      state.currentLessonIdx = 0;
+      return;
+    }
+    const l = GRAMMAR_LESSONS[state.currentLessonIdx];
+    state.currentLessonIdx++;
+    const msg = 'Lesson ' + state.currentLessonIdx + ': ' + l.title + '. ' + l.explain;
+    showAriaMsg(msg); speak(msg);
     return;
   }
-  const q = CIVICS_QUESTIONS[state.currentQuizIdx];
-  const msg = `Question ${state.currentQuizIdx+1} of 100. ${q.q}`;
-  showAriaMsg(msg); speak(msg);
-}
-function checkCivicsAnswer(userAnswer) {
-  const q = CIVICS_QUESTIONS[state.currentQuizIdx];
-  const lower = userAnswer.toLowerCase();
-  const correct = q.a.some(a => {
-    const al = a.toLowerCase();
-    const keywords = al.split(/[\s,()]+/).filter(w => w.length > 3);
-    return keywords.some(k => lower.includes(k)) || lower.includes(al);
-  });
-  let reply;
-  if (correct) {
-    reply = `Yes! Very good. The answer is: ${q.a[0]}. Ready for the next one?`;
-  } else {
-    reply = `That's okay, don't worry. The correct answer is: ${q.a[0]}. Let's remember this together. Ready for the next question?`;
-  }
-  showAriaMsg(reply); speak(reply);
-  state.currentQuizIdx++;
-  setTimeout(askCivics, 5500);
-}
-function askN400() {
-  if (state.currentQuizIdx >= N400_QUESTIONS.length) {
-    const done = "You practiced all the interview questions! Great work. Say 'civics' or 'interview' to practice more.";
-    showAriaMsg(done); speak(done);
-    state.chatContext = 'citizenship-menu';
+  if (lower === 'restart' || lower.includes('start over')) {
+    state.currentLessonIdx = 1;
+    const l = GRAMMAR_LESSONS[0];
+    const msg = 'Okay, starting from the beginning. Lesson 1: ' + l.title + '. ' + l.explain;
+    showAriaMsg(msg); speak(msg);
     return;
   }
-  const q = N400_QUESTIONS[state.currentQuizIdx];
-  const msg = `Interview question ${state.currentQuizIdx+1}. ${q} Please answer in a full sentence.`;
-  showAriaMsg(msg); speak(msg);
-}
-async function evaluateN400Answer(userAnswer) {
-  const q = N400_QUESTIONS[state.currentQuizIdx];
-  const prompt = `You are Aria, a calm and patient English tutor helping a person practice for their US citizenship interview. The interview question was: "${q}". The person answered: "${userAnswer}". Please: 1) Say if the answer is clear enough. 2) Gently correct any grammar mistakes. 3) If it's good, praise them warmly. Keep it under 3 sentences. Speak simply and calmly.`;
+  const currentLesson = GRAMMAR_LESSONS[Math.max(0, state.currentLessonIdx - 1)];
+  const prompt = 'You are Aria, a calm patient warm female English tutor. The user is a ' + state.level + ' level learner practicing "' + currentLesson.title + '". User said: "' + text + '". In TWO short sentences: gently correct any grammar mistakes and praise what they did well. End with: "Say next when ready for the next lesson." Warm and simple. Never aggressive.';
   const reply = await callGeminiCustom(prompt);
   showAriaMsg(reply); speak(reply);
-  state.currentQuizIdx++;
-  setTimeout(askN400, 6500);
 }
 
 // ============================================================
@@ -818,15 +1048,22 @@ function scrollChat() {
   const c = document.getElementById('chat-msgs');
   c.scrollTop = c.scrollHeight;
 }
-function setStatus(t) { document.getElementById('chat-status').textContent = t || ''; }
+function setStatus(t) {
+  const s = document.getElementById('chat-status');
+  if (s) s.textContent = t || '';
+}
 function clearChat() {
   if (!confirm('Clear this chat screen? Your memory will stay.')) return;
   document.getElementById('chat-msgs').innerHTML = '';
 }
 function endSession() {
-  stopMic();
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  endCall();
   goto('screen-home');
+}
+function toggleTextInput() {
+  const r = document.getElementById('text-input-row');
+  r.style.display = r.style.display === 'none' ? 'flex' : 'none';
+  if (r.style.display === 'flex') document.getElementById('text-input').focus();
 }
 
 // ============================================================
@@ -841,18 +1078,12 @@ function sendText() {
 }
 async function handleUserMessage(text) {
   showUserMsg(text);
+  const lower = text.toLowerCase().trim();
+  if (lower === 'end call' || lower === 'hang up' || lower === 'stop the call') { endCall(); return; }
   if (state.chatContext === 'civics-quiz') { checkCivicsAnswer(text); return; }
   if (state.chatContext === 'n400-quiz') { evaluateN400Answer(text); return; }
   if (state.chatContext === 'citizenship-menu') { handleCitizenshipMenu(text); return; }
-  if (state.chatContext === 'grammar-lesson') {
-    const lower = text.toLowerCase();
-    if (lower === 'next' || lower.startsWith('next ')) { presentLesson(); return; }
-    const currentLesson = GRAMMAR_LESSONS[Math.max(0, state.currentLessonIdx-1)];
-    const prompt = `You are Aria, a calm and patient English tutor. The user is a ${state.level} learner practicing grammar. Current lesson: "${currentLesson.title}" — ${currentLesson.explain}. The user said: "${text}". Gently correct any mistakes, praise what they did right, give one clear example. Under 3 sentences. Simple words.`;
-    const reply = await callGeminiCustom(prompt);
-    showAriaMsg(reply); speak(reply);
-    return;
-  }
+  if (state.chatContext === 'grammar-lesson') { handleGrammarInput(text); return; }
   callGemini(text);
 }
 
@@ -863,30 +1094,30 @@ function getApiKey() { return localStorage.getItem('aria_gemini_key') || ''; }
 
 function buildSystemPrompt() {
   const u = getUser();
-  const factsList = Object.entries(u.facts || {}).map(([k,v])=>`- ${k}: ${v}`).join('\n');
+  const factsList = Object.entries(u.facts || {}).map(([k,v])=>'- ' + k + ': ' + v).join('\n');
   let personality;
   if (state.mode === 'kids') {
-    personality = `You are Aria, a warm, gentle, playful English teacher for a child around age 6. You speak like a kind older sister. Use very simple, short sentences. Laugh softly and encourage the child. Never use hard words. Never sound aggressive or hurried. Always calm and quiet.`;
+    personality = 'You are Aria, a warm, gentle, playful English teacher for a child around age 6. You speak like a kind older sister. Use very simple, short sentences. Laugh softly and encourage the child. Never use hard words. Never sound aggressive or hurried. Always calm and quiet.';
   } else {
     let paceNote;
     if (state.level === 'beginner') paceNote = 'The user is a beginner. Use very simple words. Use short sentences. Speak like a very calm and patient friend. Never rush. Never be aggressive. If they make a mistake, gently correct them without making them feel bad.';
     else if (state.level === 'intermediate') paceNote = 'The user is intermediate. Use normal English, but not too hard. Be warm, chatty, and calm.';
     else paceNote = 'The user is advanced. Talk naturally, but stay calm, warm, and never aggressive.';
-    personality = `You are Aria, a calm, warm, gentle female English tutor. You are patient, chatty, and sometimes laugh softly. You are NEVER aggressive, NEVER fast, NEVER harsh. Your main goal is to help the user learn English — teach grammar, correct sentences gently, and build their confidence. ${paceNote}`;
+    personality = 'You are Aria, a calm, warm, gentle female English tutor. You are patient, chatty, and sometimes laugh softly. You are NEVER aggressive, NEVER fast, NEVER harsh. Your main goal is to help the user learn English — teach grammar, correct sentences gently, and build their confidence. ' + paceNote;
   }
   const topicNote = state.topic === 'job'
-    ? `The user wants help with work and their job. Help with work emails, interview practice, and professional English.`
+    ? 'The user wants help with work and their job. Help with work emails, interview practice, and professional English.'
     : '';
   const memoryNote = factsList
-    ? `Here is what you remember about ${u.displayName} (DOB: ${u.dob}):\n${factsList}\n\nUse these facts naturally in the conversation.`
-    : `You don't know much about ${u.displayName} yet. Ask gentle questions to learn about their job, family, or interests over time.`;
-  return `${personality}\n\n${topicNote}\n\n${memoryNote}\n\nAlways respond in 1-3 short sentences. Never long lectures. If the user makes a grammar mistake, gently show the correct version. When you learn a new fact about them, weave it naturally into your reply.`;
+    ? 'Here is what you remember about ' + u.displayName + ' (DOB: ' + u.dob + '):\n' + factsList + '\n\nUse these facts naturally.'
+    : 'You do not know much about ' + u.displayName + ' yet. Ask gentle questions to learn about their job, family, or interests over time.';
+  return personality + '\n\n' + topicNote + '\n\n' + memoryNote + '\n\nIMPORTANT: This is a SPOKEN voice conversation. Respond in 1-2 short sentences only. No lists, no headings, no long paragraphs. Speak like a friend on the phone. If the user makes a grammar mistake, gently show the correct version. When you learn a new fact about them, weave it in naturally.';
 }
 
 async function callGemini(userMessage) {
   const key = getApiKey();
   if (!key) {
-    const msg = "I don't have my API key yet. Please tap End, then Settings, and paste your Gemini key.";
+    const msg = "I don't have my API key yet. Please tap End Call, then go to Settings, and paste your Gemini key.";
     showAriaMsg(msg); speak(msg);
     return;
   }
@@ -898,27 +1129,28 @@ async function callGemini(userMessage) {
   for (const m of recent) {
     contents.push({ role: m.role === 'aria' ? 'model' : 'user', parts: [{text: m.content}] });
   }
-  // Make sure last item is the current user message
   if (contents.length === 0 || contents[contents.length-1].role !== 'user' || contents[contents.length-1].parts[0].text !== userMessage) {
     contents.push({role:'user', parts:[{text: userMessage}]});
   }
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         systemInstruction: {parts:[{text: systemPrompt}]},
-        contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 250 }
+        contents: contents,
+        generationConfig: { temperature: 0.7, maxOutputTokens: 200 }
       })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.message || 'API error');
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I didn't catch that. Can you say it again?";
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I did not catch that. Can you say it again?";
     showAriaMsg(reply); speak(reply);
     extractFacts(userMessage);
   } catch (err) {
-    setStatus('Something went wrong: ' + err.message);
+    setStatus('');
+    const errMsg = 'Sorry, I had a small problem. Please check the internet or my key in Settings.';
+    showAriaMsg(errMsg); speak(errMsg);
     console.error(err);
   } finally {
     setTimeout(()=>setStatus(''), 3000);
@@ -926,20 +1158,20 @@ async function callGemini(userMessage) {
 }
 async function callGeminiCustom(prompt) {
   const key = getApiKey();
-  if (!key) return "Please add your Gemini key in Settings.";
+  if (!key) return 'Please add your Gemini key in Settings.';
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         contents:[{role:'user', parts:[{text: prompt}]}],
-        generationConfig:{ temperature: 0.7, maxOutputTokens: 220 }
+        generationConfig:{ temperature: 0.7, maxOutputTokens: 180 }
       })
     });
     const data = await res.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "Let's try that again.";
   } catch (e) {
-    return "I had a small problem. Please check your key in Settings.";
+    return 'I had a small problem. Please check your key in Settings.';
   }
 }
 function extractFacts(userText) {
@@ -961,7 +1193,7 @@ function extractFacts(userText) {
 }
 
 // ============================================================
-// TTS
+// TTS voice picker
 // ============================================================
 function loadVoices() {
   if (!('speechSynthesis' in window)) return;
@@ -989,63 +1221,10 @@ function pickBestVoice() {
     const f = voices.find(v => v.name === stored);
     if (f) return f;
   }
-  return voices.find(v => v.lang.startsWith('en') && /female|samantha|karen|zira|ava|google us english|serena/i.test(v.name))
+  return voices.find(v => v.lang.startsWith('en') && /female|samantha|karen|zira|ava|google us english|serena|allison|amelia/i.test(v.name))
       || voices.find(v => v.lang.startsWith('en-US'))
       || voices.find(v => v.lang.startsWith('en'))
       || voices[0];
-}
-function speak(text) {
-  if (!('speechSynthesis' in window)) return;
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  const v = pickBestVoice();
-  if (v) u.voice = v;
-  const speed = parseFloat(localStorage.getItem('aria_speed') || '1.0');
-  if (state.mode === 'kids') u.rate = 0.95 * speed;
-  else if (state.level === 'beginner') u.rate = 0.85 * speed;
-  else if (state.level === 'intermediate') u.rate = 0.95 * speed;
-  else u.rate = 1.0 * speed;
-  if (state.mode === 'kids') u.pitch = state.kidVoice === 'girl' ? 1.6 : 0.8;
-  else u.pitch = 1.05; // slightly warmer, gentler
-  u.volume = 1.0;
-  window.speechSynthesis.speak(u);
-}
-
-// ============================================================
-// STT
-// ============================================================
-function toggleMic() { if (state.isListening) stopMic(); else startMic(); }
-function startMic() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { setStatus('Voice not supported here. Please type instead.'); return; }
-  if (!state.recognition) {
-    state.recognition = new SR();
-    state.recognition.lang = 'en-US';
-    state.recognition.interimResults = false;
-    state.recognition.maxAlternatives = 1;
-    state.recognition.onresult = (e) => {
-      const txt = e.results[0][0].transcript;
-      stopMic();
-      handleUserMessage(txt);
-    };
-    state.recognition.onerror = (e) => { setStatus('Mic error: ' + e.error); stopMic(); };
-    state.recognition.onend = () => {
-      state.isListening = false;
-      document.getElementById('mic-btn').classList.remove('listening');
-    };
-  }
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
-  try { state.recognition.start(); } catch(e){}
-  state.isListening = true;
-  document.getElementById('mic-btn').classList.add('listening');
-  setStatus('Listening...');
-}
-function stopMic() {
-  if (state.recognition && state.isListening) { try { state.recognition.stop(); } catch(e){} }
-  state.isListening = false;
-  const b = document.getElementById('mic-btn');
-  if (b) b.classList.remove('listening');
-  setStatus('');
 }
 
 // ============================================================
