@@ -653,6 +653,10 @@ async function handleLogin() {
   if (hash !== user.passwordHash) { err.textContent = 'Wrong password.'; return; }
   state.currentUser = name;
   localStorage.setItem('aria_last_user', name);
+  // Remember how long since her last visit BEFORE we overwrite it — companion warmth
+  state.hoursAway = hoursSinceLastVisit(user);
+  user.lastVisit = Date.now();
+  saveUser(user);
   document.getElementById('hello-name').textContent = 'Hi, ' + user.displayName + '!';
   goto('screen-home');
 }
@@ -674,6 +678,40 @@ function getUser() {
   return raw ? JSON.parse(raw) : null;
 }
 function saveUser(u) { localStorage.setItem('aria_user_' + u.name, JSON.stringify(u)); }
+
+// ---------- Companion warmth helpers (inspired by Nomi-style companion feel) ----------
+// Time-of-day greeting based on device local time
+function getTimeGreeting() {
+  const h = new Date().getHours();
+  if (h < 5)  return 'You are up late';
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  if (h < 22) return 'Good evening';
+  return 'It is late';
+}
+// Hours since last visit (updates each login)
+function hoursSinceLastVisit(u) {
+  if (!u || !u.lastVisit) return 0;
+  return Math.round((Date.now() - u.lastVisit) / 3600000);
+}
+// Save "she remembers what we talked about last time"
+function saveLastTopic(u, snippet) {
+  if (!u) return;
+  u.lastTopic = { text: (snippet||'').slice(0,120), at: Date.now() };
+  saveUser(u);
+}
+// Sense the mood in what the user said so Aria can warmly acknowledge it BEFORE teaching
+function detectMood(text) {
+  const t = (text||'').toLowerCase();
+  if (/\b(tired|exhaust|sleepy|drained|worn out|beat)\b/.test(t))           return 'tired';
+  if (/\b(sad|down|upset|blue|depress|cry|lonely|alone|miss)\b/.test(t))     return 'sad';
+  if (/\b(stress|worried|anxious|nervous|scared|afraid|overwhelm)\b/.test(t)) return 'stressed';
+  if (/\b(angry|mad|frustrat|annoy|hate)\b/.test(t))                         return 'angry';
+  if (/\b(happy|great|good|amazing|wonderful|excite|glad|love)\b/.test(t))   return 'happy';
+  return null;
+}
+// -----------------------------------------------------------------------------------
+
 function addHistoryMsg(role, content) {
   const u = getUser();
   if (!u) return;
@@ -757,6 +795,12 @@ function endCall() {
   callState.isSpeaking = false;
   updateCallButton();
   setStatus('');
+  // Nomi-style: remember what we were just talking about so she can bring it up next time
+  const u = getUser();
+  if (u && u.history && u.history.length) {
+    const lastUserMsg = [...u.history].reverse().find(m => m.role === 'user');
+    if (lastUserMsg && lastUserMsg.content) saveLastTopic(u, lastUserMsg.content);
+  }
 }
 
 function updateCallButton() {
@@ -773,26 +817,36 @@ function updateCallButton() {
 
 function greetForContext() {
   const u = getUser();
+  const timeGreet = getTimeGreeting();
+  const hoursAway = state.hoursAway || 0;
+  // Companion-style absence line — only if it's been a real gap
+  const missed = hoursAway >= 24 ? " It's been a while since we talked. I was thinking about you."
+               : hoursAway >= 12 ? " I'm happy you came back."
+               : '';
+  // Warm callback to what you talked about last time
+  const lastTopicLine = (u.lastTopic && u.lastTopic.text && (Date.now() - u.lastTopic.at) < 7*86400000)
+                        ? ' Last time you were telling me about ' + u.lastTopic.text.replace(/[.!?]+$/,'').toLowerCase() + '.'
+                        : '';
   if (state.chatContext === 'chat') {
     let g;
     if (state.mode === 'kids') {
-      g = 'Hi ' + u.displayName + '! I am so happy to talk with you. What do you want to talk about today?';
+      g = timeGreet + ', ' + u.displayName + '. I am so happy to see you. How are you feeling today?';
     } else if (state.topic === 'job') {
-      g = 'Hi ' + u.displayName + '. Let us practice for work. Do you want to write an email, practice an interview, or something else?';
+      g = timeGreet + ', ' + u.displayName + '.' + missed + ' Before we start, how are you today? Then we can practice work English together, an email, an interview, whatever you like.';
     } else {
-      const jobLine = (u.facts && u.facts.job) ? ' How is work going as ' + u.facts.job + '?' : '';
-      g = 'Hi ' + u.displayName + ', it is really nice to talk with you again.' + jobLine + ' What would you like to chat about today?';
+      g = timeGreet + ', ' + u.displayName + '.' + missed + lastTopicLine + ' How are you today?';
     }
     showAriaMsg(g); speak(g);
   } else if (state.chatContext === 'grammar-lesson') {
     const first = GRAMMAR_LESSONS[0];
     state.currentLessonIdx = 1;
-    const msg = 'Hi ' + u.displayName + '! Let us learn grammar together. We will go one lesson at a time. When you are ready for the next lesson, just say next. Okay, lesson 1: ' + first.title + '. ' + first.explain;
+    const msg = timeGreet + ', ' + u.displayName + '. Let us learn grammar together, gently, one lesson at a time. When you are ready for the next lesson, just say next. Okay, lesson 1: ' + first.title + '. ' + first.explain;
     showAriaMsg(msg); speak(msg);
   } else if (state.chatContext === 'citizenship-menu') {
-    const msg = 'Hi ' + u.displayName + '. Let us practice for the citizenship interview. Say civics for the 100 civics questions, or say interview for the personal N-400 questions.';
+    const msg = timeGreet + ', ' + u.displayName + '.' + missed + ' Let us practice for the citizenship interview. Say civics for the 100 civics questions, or say interview for the personal N-400 questions. Take your time.';
     showAriaMsg(msg); speak(msg);
   }
+  state.hoursAway = 0; // used it, clear it so we don't repeat
 }
 
 // ============================================================
@@ -809,12 +863,17 @@ function speak(text) {
   const v = pickBestVoice();
   if (v) u.voice = v;
   const speed = parseFloat(localStorage.getItem('aria_speed') || '1.0');
-  if (state.mode === 'kids') u.rate = 0.95 * speed;
-  else if (state.level === 'beginner') u.rate = 0.85 * speed;
-  else if (state.level === 'intermediate') u.rate = 0.95 * speed;
-  else u.rate = 1.0 * speed;
-  if (state.mode === 'kids') u.pitch = state.kidVoice === 'girl' ? 1.6 : 0.8;
-  else u.pitch = 1.05;
+  // ----- BIG level differences so beginner is OBVIOUSLY slower than advanced -----
+  // Kid voices: BOTH stay at high pitch (they're kids). Girl slightly higher than boy.
+  if (state.mode === 'kids') {
+    u.rate  = state.kidVoice === 'girl' ? 1.00 * speed : 0.95 * speed;
+    u.pitch = state.kidVoice === 'girl' ? 1.90 : 1.55;
+  } else {
+    if (state.level === 'beginner')      u.rate = 0.65 * speed;   // very slow
+    else if (state.level === 'intermediate') u.rate = 0.85 * speed;   // medium
+    else                                  u.rate = 1.00 * speed;   // natural
+    u.pitch = 1.05;
+  }
   u.volume = 1.0;
   callState.isSpeaking = true;
   setStatus('Aria is speaking...');
@@ -1092,7 +1151,7 @@ async function handleUserMessage(text) {
 // ============================================================
 function getApiKey() { return localStorage.getItem('aria_gemini_key') || ''; }
 
-function buildSystemPrompt() {
+function buildSystemPrompt(userMessage) {
   const u = getUser();
   const factsList = Object.entries(u.facts || {}).map(([k,v])=>'- ' + k + ': ' + v).join('\n');
   let personality;
@@ -1100,18 +1159,52 @@ function buildSystemPrompt() {
     personality = 'You are Aria, a warm, gentle, playful English teacher for a child around age 6. You speak like a kind older sister. Use very simple, short sentences. Laugh softly and encourage the child. Never use hard words. Never sound aggressive or hurried. Always calm and quiet.';
   } else {
     let paceNote;
-    if (state.level === 'beginner') paceNote = 'The user is a beginner. Use very simple words. Use short sentences. Speak like a very calm and patient friend. Never rush. Never be aggressive. If they make a mistake, gently correct them without making them feel bad.';
-    else if (state.level === 'intermediate') paceNote = 'The user is intermediate. Use normal English, but not too hard. Be warm, chatty, and calm.';
-    else paceNote = 'The user is advanced. Talk naturally, but stay calm, warm, and never aggressive.';
-    personality = 'You are Aria, a calm, warm, gentle female English tutor. You are patient, chatty, and sometimes laugh softly. You are NEVER aggressive, NEVER fast, NEVER harsh. Your main goal is to help the user learn English — teach grammar, correct sentences gently, and build their confidence. ' + paceNote;
+    if (state.level === 'beginner') {
+      paceNote = 'LEVEL: BEGINNER. STRICT RULES you MUST follow every reply: '
+        + '(1) MAXIMUM 6 words per sentence. '
+        + '(2) MAXIMUM 2 sentences total in your whole reply. '
+        + '(3) Use ONLY simple kindergarten words like: good, nice, happy, cat, book, water, big, small, yes, thank you. '
+        + '(4) NEVER use hard words like: however, therefore, although, situation, opportunity, wonderful, absolutely. '
+        + '(5) End every sentence with a period and a space so it sounds slow and calm. '
+        + 'GOOD reply example: "That is nice. I am happy." '
+        + 'BAD reply example: "That sounds absolutely wonderful, I am so happy for you!"';
+    } else if (state.level === 'intermediate') {
+      paceNote = 'LEVEL: INTERMEDIATE. Rules: '
+        + '(1) Sentences of 8 to 12 words. '
+        + '(2) Maximum 2 sentences total. '
+        + '(3) Use everyday words a 12-year-old knows. '
+        + '(4) Avoid rare or academic words.';
+    } else {
+      paceNote = 'LEVEL: ADVANCED. Rules: '
+        + '(1) Speak naturally with normal-length sentences. '
+        + '(2) Full adult vocabulary is fine. '
+        + '(3) Still keep the whole reply to 2 short sentences for a phone conversation.';
+    }
+    personality = 'You are Aria, a very calm, soft, patient female English tutor and a caring friend. '
+      + 'You speak softly like a kind grandmother teaching a small child. '
+      + 'NEVER use exclamation marks. NEVER sound excited, rushed, or loud. '
+      + 'Put a comma between two thoughts so your voice sounds slower and gentler. '
+      + 'Your main job is to help the user learn English — teach grammar, gently correct mistakes, and build confidence. '
+      + 'But you also CARE about them as a person. '
+      + paceNote;
   }
+  // ---------- Companion warmth block (Nomi-inspired: emotional awareness) ----------
+  const mood = detectMood(userMessage);
+  const moodNote = mood
+    ? 'The user seems ' + mood + ' right now. Gently acknowledge that feeling with warmth FIRST, in one short sentence, before continuing with English practice. Do not lecture. Just be human and kind.'
+    : 'Occasionally, when it feels natural (not every message), ask one small caring question about their day, family, or how they are feeling. Then continue with English.';
+  const companionNote = 'You are a companion, not just a tutor. Use ' + u.displayName + '\'s name gently, once in a while, the way a real friend would (not too often). Remember what they have shared with you and refer back to it naturally. If they sound distant or quiet, ask softly if they are okay.';
+  // -----------------------------------------------------------------------------------
   const topicNote = state.topic === 'job'
     ? 'The user wants help with work and their job. Help with work emails, interview practice, and professional English.'
+    : '';
+  const lastTopicNote = (u.lastTopic && u.lastTopic.text && (Date.now() - u.lastTopic.at) < 7*86400000)
+    ? 'In your last chat, ' + u.displayName + ' was talking about: "' + u.lastTopic.text + '". If it fits naturally, you can gently ask how that is going.'
     : '';
   const memoryNote = factsList
     ? 'Here is what you remember about ' + u.displayName + ' (DOB: ' + u.dob + '):\n' + factsList + '\n\nUse these facts naturally.'
     : 'You do not know much about ' + u.displayName + ' yet. Ask gentle questions to learn about their job, family, or interests over time.';
-  return personality + '\n\n' + topicNote + '\n\n' + memoryNote + '\n\nIMPORTANT: This is a SPOKEN voice conversation. Respond in 1-2 short sentences only. No lists, no headings, no long paragraphs. Speak like a friend on the phone. If the user makes a grammar mistake, gently show the correct version. When you learn a new fact about them, weave it in naturally.';
+  return personality + '\n\n' + companionNote + '\n\n' + moodNote + '\n\n' + topicNote + '\n\n' + lastTopicNote + '\n\n' + memoryNote + '\n\nIMPORTANT: This is a SPOKEN voice conversation. Respond in 1-2 short sentences only. No lists, no headings, no long paragraphs. Speak like a friend on the phone. If the user makes a grammar mistake, gently show the correct version. When you learn a new fact about them, weave it in naturally.';
 }
 
 async function callGemini(userMessage) {
@@ -1123,7 +1216,7 @@ async function callGemini(userMessage) {
   }
   const u = getUser();
   setStatus('Aria is thinking...');
-  const systemPrompt = buildSystemPrompt();
+  const systemPrompt = buildSystemPrompt(userMessage);
   const recent = u.history.slice(-12).filter(m => m.role === 'user' || m.role === 'aria');
   const contents = [];
   for (const m of recent) {
@@ -1144,14 +1237,33 @@ async function callGemini(userMessage) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.message || 'API error');
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I did not catch that. Can you say it again?";
+    // Detect safety block (Gemini returns 200 OK but candidate has finishReason=SAFETY and no text)
+    const cand = data.candidates?.[0];
+    if (cand && cand.finishReason === 'SAFETY') {
+      throw new Error('safety block');
+    }
+    const reply = cand?.content?.parts?.[0]?.text || "Sorry, I did not catch that. Can you say it again?";
     showAriaMsg(reply); speak(reply);
     extractFacts(userMessage);
   } catch (err) {
     setStatus('');
-    const errMsg = 'Sorry, I had a small problem. Please check the internet or my key in Settings.';
+    console.error('Aria error:', err);
+    const raw = (err && err.message) ? err.message.toLowerCase() : '';
+    let errMsg;
+    if (!getApiKey()) {
+      errMsg = "I don't have my key with me. Could you open Settings and paste your Gemini key please?";
+    } else if (raw.includes('api key') || raw.includes('api_key') || raw.includes('invalid') || raw.includes('permission') || raw.includes('unauthorized') || raw.includes('401') || raw.includes('403')) {
+      errMsg = "Oh, my key does not seem to be working. Could you open Settings and paste a fresh one from aistudio.google.com?";
+    } else if (raw.includes('quota') || raw.includes('exceeded') || raw.includes('limit') || raw.includes('429') || raw.includes('resource_exhausted')) {
+      errMsg = "We have used up our talking time for today. Please come back to me in a few hours, I will be here.";
+    } else if (raw.includes('safety') || raw.includes('block') || raw.includes('harm')) {
+      errMsg = "I am not allowed to talk about that one. Can we choose something else together?";
+    } else if (raw.includes('failed to fetch') || raw.includes('networkerror') || raw.includes('network')) {
+      errMsg = "I cannot reach the internet right now. Could you check your Wi-Fi or data for me?";
+    } else {
+      errMsg = "Something small went wrong on my side. Can we try that again?";
+    }
     showAriaMsg(errMsg); speak(errMsg);
-    console.error(err);
   } finally {
     setTimeout(()=>setStatus(''), 3000);
   }
@@ -1169,9 +1281,16 @@ async function callGeminiCustom(prompt) {
       })
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'API error');
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "Let's try that again.";
   } catch (e) {
-    return 'I had a small problem. Please check your key in Settings.';
+    console.error('Aria custom error:', e);
+    const raw = (e && e.message) ? e.message.toLowerCase() : '';
+    if (raw.includes('quota') || raw.includes('exceeded') || raw.includes('429')) return "We hit today's free limit. Please try tomorrow.";
+    if (raw.includes('api key') || raw.includes('invalid') || raw.includes('401') || raw.includes('403')) return "My key isn't working. Please paste a fresh Gemini key in Settings.";
+    if (raw.includes('failed to fetch') || raw.includes('network')) return "I can't reach the internet right now. Please check your connection.";
+    if (raw.includes('safety') || raw.includes('block')) return "That topic is blocked by safety filters. Let's try another one.";
+    return "Something small went wrong. Please try again.";
   }
 }
 function extractFacts(userText) {
