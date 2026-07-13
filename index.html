@@ -232,35 +232,11 @@
 
 <div id="app">
 
-  <!-- LOGIN / SIGNUP -->
-  <div id="screen-login" class="screen active">
-    <div class="center-top">
-      <div class="icon-lg">🌸</div>
-      <h1>Aria</h1>
-      <p class="subtitle">Your calm English learning companion</p>
-    </div>
-    <div id="login-form">
-      <input class="input" id="li-name" placeholder="Your name" autocapitalize="off">
-      <input class="input" id="li-password" placeholder="Password" type="password">
-      <button class="btn primary" onclick="handleLogin()">Log in</button>
-      <button class="btn secondary" onclick="showSignup()">New user? Sign up</button>
-      <div id="login-error" class="error"></div>
-    </div>
-    <div id="signup-form" style="display:none;">
-      <input class="input" id="su-name" placeholder="Choose a name" autocapitalize="off">
-      <input class="input" id="su-dob" placeholder="Date of birth (MM/DD/YYYY)">
-      <input class="input" id="su-password" placeholder="Choose a password" type="password">
-      <input class="input" id="su-password2" placeholder="Confirm password" type="password">
-      <button class="btn primary" onclick="handleSignup()">Create account</button>
-      <button class="btn secondary" onclick="showLogin()">Back to login</button>
-      <div id="signup-error" class="error"></div>
-    </div>
-  </div>
-
   <!-- HOME -->
-  <div id="screen-home" class="screen">
-    <div style="margin-top:20px;">
-      <h1 id="hello-name">Hi!</h1>
+  <div id="screen-home" class="screen active">
+    <div class="center-top" style="margin-top:20px;">
+      <div class="icon-lg">🌸</div>
+      <h1 id="hello-name">Aria</h1>
       <p class="subtitle">Who is using Aria today?</p>
     </div>
     <div class="row-2">
@@ -276,7 +252,6 @@
       </div>
     </div>
     <button class="btn secondary" style="margin-top:20px;" onclick="goto('screen-settings')">⚙️ Settings</button>
-    <button class="btn" style="margin-top:12px;background:transparent;color:#94a3b8;box-shadow:none;" onclick="logout()">Log out</button>
   </div>
 
   <!-- KIDS VOICE PICK -->
@@ -363,6 +338,8 @@
   <div id="screen-settings" class="screen">
     <button class="back-btn" onclick="goto('screen-home')">← Back</button>
     <h2>Settings</h2>
+    <div class="settings-row"><label>Your name</label></div>
+    <input class="input" id="setting-display-name" placeholder="What should Aria call you?">
     <div class="settings-row"><label>Gemini API Key</label></div>
     <input class="input" id="setting-api-key" placeholder="Paste your Gemini API key">
     <p class="subtitle" style="font-size:12px;">Get a free key at aistudio.google.com/apikey</p>
@@ -586,15 +563,6 @@ let callState = {
 };
 
 // ============================================================
-// UTIL
-// ============================================================
-async function hashPassword(password) {
-  const enc = new TextEncoder().encode(password);
-  const hash = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-// ============================================================
 // NAVIGATION
 // ============================================================
 function goto(id) {
@@ -602,71 +570,36 @@ function goto(id) {
   document.getElementById(id).classList.add('active');
   if (id === 'screen-settings') {
     loadVoices();
+    const u = getUser();
+    document.getElementById('setting-display-name').value = (u && u.displayName !== 'friend') ? u.displayName : '';
     document.getElementById('setting-api-key').value = localStorage.getItem('aria_gemini_key') || '';
     document.getElementById('setting-speed').value = localStorage.getItem('aria_speed') || '1.0';
   }
 }
 
 // ============================================================
-// AUTH
+// PROFILE — single local profile, no login screen.
+// Everything is stored under one fixed key so returning visitors
+// (same browser) keep their history/facts automatically.
 // ============================================================
-function showSignup() {
-  document.getElementById('login-form').style.display = 'none';
-  document.getElementById('signup-form').style.display = 'block';
-}
-function showLogin() {
-  document.getElementById('signup-form').style.display = 'none';
-  document.getElementById('login-form').style.display = 'block';
-}
-async function handleSignup() {
-  const displayName = document.getElementById('su-name').value.trim();
-  const name = displayName.toLowerCase();
-  const dob = document.getElementById('su-dob').value.trim();
-  const pw = document.getElementById('su-password').value;
-  const pw2 = document.getElementById('su-password2').value;
-  const err = document.getElementById('signup-error');
-  err.textContent = '';
-  if (!displayName || !dob || !pw) { err.textContent = 'Please fill in every field.'; return; }
-  if (pw !== pw2) { err.textContent = 'Passwords do not match.'; return; }
-  if (pw.length < 4) { err.textContent = 'Password must be at least 4 characters.'; return; }
-  const userKey = 'aria_user_' + name;
-  if (localStorage.getItem(userKey)) { err.textContent = 'That name is already taken. Try logging in.'; return; }
-  const hash = await hashPassword(pw);
-  const user = { name, displayName, dob, passwordHash: hash, facts: {}, history: [], createdAt: Date.now() };
-  localStorage.setItem(userKey, JSON.stringify(user));
-  state.currentUser = name;
-  localStorage.setItem('aria_last_user', name);
-  document.getElementById('hello-name').textContent = 'Hi, ' + displayName + '!';
-  goto('screen-home');
-}
-async function handleLogin() {
-  const displayName = document.getElementById('li-name').value.trim();
-  const name = displayName.toLowerCase();
-  const pw = document.getElementById('li-password').value;
-  const err = document.getElementById('login-error');
-  err.textContent = '';
-  if (!name || !pw) { err.textContent = 'Please enter your name and password.'; return; }
-  const raw = localStorage.getItem('aria_user_' + name);
-  if (!raw) { err.textContent = 'User not found. Sign up first.'; return; }
-  const user = JSON.parse(raw);
-  const hash = await hashPassword(pw);
-  if (hash !== user.passwordHash) { err.textContent = 'Wrong password.'; return; }
-  state.currentUser = name;
-  localStorage.setItem('aria_last_user', name);
-  // Remember how long since her last visit BEFORE we overwrite it — companion warmth
+const PROFILE_KEY = 'aria_user_default';
+
+function initProfile() {
+  let raw = localStorage.getItem(PROFILE_KEY);
+  let user;
+  if (raw) {
+    user = JSON.parse(raw);
+  } else {
+    user = { name: 'default', displayName: 'friend', dob: '', facts: {}, history: [], createdAt: Date.now() };
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(user));
+  }
+  state.currentUser = 'default';
+  // Companion warmth: remember how long since the last visit, then stamp this one
   state.hoursAway = hoursSinceLastVisit(user);
   user.lastVisit = Date.now();
   saveUser(user);
-  document.getElementById('hello-name').textContent = 'Hi, ' + user.displayName + '!';
-  goto('screen-home');
-}
-function logout() {
-  state.currentUser = null;
-  localStorage.removeItem('aria_last_user');
-  document.getElementById('li-name').value = '';
-  document.getElementById('li-password').value = '';
-  document.body.classList.remove('kid-mode');
-  goto('screen-login');
+  const helloEl = document.getElementById('hello-name');
+  if (helloEl) helloEl.textContent = user.displayName && user.displayName !== 'friend' ? 'Hi, ' + user.displayName + '!' : 'Aria';
 }
 
 // ============================================================
@@ -1354,6 +1287,13 @@ function pickBestVoice() {
 // SETTINGS
 // ============================================================
 function saveSettings() {
+  const name = document.getElementById('setting-display-name').value.trim();
+  const u = getUser();
+  if (u) {
+    u.displayName = name || 'friend';
+    saveUser(u);
+    document.getElementById('hello-name').textContent = (u.displayName !== 'friend') ? 'Hi, ' + u.displayName + '!' : 'Aria';
+  }
   const key = document.getElementById('setting-api-key').value.trim();
   if (key) localStorage.setItem('aria_gemini_key', key);
   const speed = document.getElementById('setting-speed').value;
@@ -1375,12 +1315,9 @@ function wipeMemory() {
 // BOOT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
+  initProfile();
   loadVoices();
   setTimeout(loadVoices, 800); // Android often needs a delay
-  const lastUser = localStorage.getItem('aria_last_user');
-  if (lastUser && localStorage.getItem('aria_user_'+lastUser)) {
-    document.getElementById('li-name').value = lastUser;
-  }
 });
 </script>
 
