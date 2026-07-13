@@ -1218,6 +1218,10 @@ async function callGemini(userMessage) {
   setStatus('Aria is thinking...');
   const systemPrompt = buildSystemPrompt(userMessage);
   const recent = u.history.slice(-12).filter(m => m.role === 'user' || m.role === 'aria');
+  // Gemini requires the conversation to START with a 'user' turn.
+  // Aria's opening greeting is saved to history as role 'aria' first,
+  // so drop any leading aria turns or every reply after the greeting fails silently.
+  while (recent.length && recent[0].role === 'aria') recent.shift();
   const contents = [];
   for (const m of recent) {
     contents.push({ role: m.role === 'aria' ? 'model' : 'user', parts: [{text: m.content}] });
