@@ -3,352 +3,143 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Aria — English Companion</title>
+<title>Aria — Speak English</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body {
     height: 100%;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: linear-gradient(135deg, #fdf2f8 0%, #ede9fe 50%, #dbeafe 100%);
+    background: linear-gradient(160deg, #fdf2f8 0%, #ede9fe 55%, #dbeafe 100%);
     color: #1e293b;
     overflow: hidden;
-  }
-  body.kid-mode {
-    background: linear-gradient(135deg, #fef3c7 0%, #fce7f3 50%, #dbeafe 100%);
   }
   #app { height: 100%; display: flex; flex-direction: column; }
-  .screen {
-    display: none;
-    flex: 1;
-    flex-direction: column;
-    padding: 20px;
-    overflow-y: auto;
-  }
+  .screen { display: none; flex: 1; flex-direction: column; padding: 20px; overflow-y: auto; }
   .screen.active { display: flex; }
-  h1 { font-size: 30px; margin-bottom: 8px; color: #7c3aed; }
-  h2 { font-size: 22px; margin-bottom: 16px; color: #1e293b; }
-  .subtitle { color: #64748b; margin-bottom: 24px; font-size: 15px; }
-  .btn {
-    display: block;
-    width: 100%;
-    padding: 16px;
-    border: none;
-    border-radius: 14px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-bottom: 12px;
-    background: white;
-    color: #1e293b;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    transition: transform 0.1s;
-    font-family: inherit;
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 2px 2px 0; }
+  .brand { font-size: 22px; font-weight: 800; color: #7c3aed; letter-spacing: .5px; }
+  .gear { background: none; border: none; font-size: 22px; cursor: pointer; line-height: 1; padding: 6px; }
+  .back-btn {
+    background: none; border: none; color: #7c3aed; font-size: 16px;
+    padding: 8px 0; margin-bottom: 12px; cursor: pointer; align-self: flex-start; font-family: inherit;
   }
-  .btn:active { transform: scale(0.98); }
-  .btn.primary { background: linear-gradient(135deg, #a855f7, #7c3aed); color: white; }
-  .btn.secondary { background: white; color: #7c3aed; border: 2px solid #ddd6fe; }
-  .btn.small { padding: 8px 14px; font-size: 14px; width: auto; display: inline-block; margin: 0; }
-  .kid-mode .btn { border-radius: 20px; font-size: 18px; padding: 20px; }
-  .input {
-    width: 100%;
-    padding: 14px;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 16px;
-    margin-bottom: 12px;
-    background: white;
+  h2 { font-size: 22px; margin-bottom: 16px; color: #1e293b; }
+  .subtitle { color: #64748b; margin-bottom: 16px; font-size: 13px; }
+
+  /* ---------- The one screen: Aria's presence ---------- */
+  .speak-wrap {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 24px;
+  }
+  .orb {
+    position: relative; width: 190px; height: 190px; border-radius: 50%;
+    border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
     font-family: inherit;
+    background: radial-gradient(circle at 35% 30%, #f5d0fe 0%, #c084fc 45%, #7c3aed 100%);
+    box-shadow: 0 14px 44px rgba(124,58,237,0.35), inset 0 -8px 26px rgba(76,29,149,0.35);
+    transition: transform .3s ease, box-shadow .3s ease;
+    animation: breathe 4.5s ease-in-out infinite;
+  }
+  .orb:active { transform: scale(0.97); }
+  .orb-face { font-size: 64px; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15)); pointer-events: none; }
+  .orb::before, .orb::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 50%;
+    border: 2px solid rgba(168,85,247,0.55); opacity: 0; pointer-events: none;
+  }
+  .orb.listening { animation: breathe 3s ease-in-out infinite; }
+  .orb.listening::before { animation: ripple 1.8s ease-out infinite; }
+  .orb.listening::after  { animation: ripple 1.8s ease-out .9s infinite; }
+  .orb.speaking {
+    animation: speakpulse 0.9s ease-in-out infinite;
+    box-shadow: 0 14px 54px rgba(124,58,237,0.6), inset 0 -8px 26px rgba(76,29,149,0.35);
+  }
+  .orb.thinking { animation: breathe 1.5s ease-in-out infinite; opacity: .82; }
+  @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  @keyframes speakpulse { 0%,100% { transform: scale(1.02); } 50% { transform: scale(1.10); } }
+  @keyframes ripple { 0% { transform: scale(1); opacity: .6; } 100% { transform: scale(1.65); opacity: 0; } }
+
+  .hello-sub { color: #7c3aed; font-size: 16px; font-weight: 600; min-height: 20px; }
+  .speak-status { font-size: 17px; color: #6b21a8; font-weight: 600; min-height: 24px; text-align: center; padding: 0 20px; }
+  .stop-btn {
+    padding: 12px 30px; border: none; border-radius: 40px; background: #fee2e2; color: #dc2626;
+    font-weight: 700; font-size: 15px; cursor: pointer; font-family: inherit;
+  }
+  .stop-btn:active { transform: scale(0.97); }
+
+  /* ---------- Settings ---------- */
+  .input {
+    width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px;
+    font-size: 16px; margin-bottom: 10px; background: white; font-family: inherit;
   }
   .input:focus { outline: none; border-color: #a855f7; }
-  .card {
-    background: white;
-    padding: 20px;
-    border-radius: 16px;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    cursor: pointer;
-    transition: transform 0.1s;
-  }
-  .card:active { transform: scale(0.98); }
-  .card-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #7c3aed; }
-  .card-desc { font-size: 14px; color: #64748b; }
-  .back-btn {
-    background: none;
-    border: none;
-    color: #7c3aed;
-    font-size: 16px;
-    padding: 8px 0;
-    margin-bottom: 12px;
-    cursor: pointer;
-    align-self: flex-start;
-    font-family: inherit;
-  }
-  .chat-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-  .chat-header {
-    padding: 12px 16px;
-    background: white;
-    border-radius: 14px;
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    gap: 8px;
-  }
-  .chat-msgs {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .msg {
-    max-width: 85%;
-    padding: 12px 16px;
-    border-radius: 18px;
-    font-size: 15px;
-    line-height: 1.4;
-    word-wrap: break-word;
-  }
-  .msg.user {
-    align-self: flex-end;
-    background: linear-gradient(135deg, #a855f7, #7c3aed);
-    color: white;
-    border-bottom-right-radius: 6px;
-  }
-  .msg.aria {
-    align-self: flex-start;
-    background: white;
-    color: #1e293b;
-    border-bottom-left-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  }
-  .call-btn {
-    width: 100%;
-    padding: 22px;
-    border-radius: 50px;
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: white;
-    border: none;
-    font-size: 20px;
-    font-weight: 700;
-    align-self: center;
-    margin: 16px auto 8px;
-    box-shadow: 0 6px 20px rgba(34,197,94,0.4);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-family: inherit;
-  }
-  .call-btn.active {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    box-shadow: 0 6px 20px rgba(239,68,68,0.4);
-    animation: pulse 2s infinite;
-  }
-  .call-btn:active { transform: scale(0.98); }
-  .type-toggle {
-    background: none;
-    border: none;
-    color: #94a3b8;
-    font-size: 13px;
-    margin: 4px auto;
-    cursor: pointer;
-    text-decoration: underline;
-    display: block;
-    font-family: inherit;
-  }
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-  }
-  .text-input-row {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-  }
-  .text-input-row input {
-    flex: 1;
-    padding: 12px;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 15px;
-    font-family: inherit;
-  }
-  .text-input-row button {
-    padding: 12px 20px;
-    border: none;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #a855f7, #7c3aed);
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .status-bar {
-    text-align: center;
-    color: #64748b;
-    font-size: 13px;
-    padding: 6px;
-    min-height: 24px;
-  }
   .settings-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid #e2e8f0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid #e2e8f0;
   }
   .settings-row label { flex: 1; font-size: 15px; }
   .settings-row select {
-    padding: 8px;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    font-size: 14px;
-    max-width: 55%;
-    font-family: inherit;
+    padding: 8px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 14px;
+    max-width: 60%; font-family: inherit;
   }
-  .error { color: #dc2626; font-size: 13px; margin-bottom: 8px; }
+  .btn {
+    display: block; width: 100%; padding: 16px; border: none; border-radius: 14px;
+    font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 12px;
+    background: white; color: #1e293b; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: transform 0.1s; font-family: inherit;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.primary { background: linear-gradient(135deg, #a855f7, #7c3aed); color: white; }
   .success { color: #16a34a; font-size: 13px; margin-bottom: 8px; }
-  .icon-lg { font-size: 40px; margin-bottom: 8px; }
-  .row-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb, .orb.listening, .orb.speaking, .orb.thinking { animation: none; }
+    .orb.listening::before, .orb.listening::after { animation: none; }
   }
-  .row-2 .card { margin-bottom: 0; text-align: center; }
-  .center-top { margin-top: 32px; text-align: center; }
 </style>
 </head>
 <body>
 
 <div id="app">
 
-  <!-- HOME -->
-  <div id="screen-home" class="screen active">
-    <div class="center-top" style="margin-top:20px;">
-      <div class="icon-lg">🌸</div>
-      <h1 id="hello-name">Aria</h1>
-      <p class="subtitle">Who is using Aria today?</p>
+  <!-- SPEAK (the only main screen) -->
+  <div id="screen-speak" class="screen active">
+    <div class="topbar">
+      <div class="brand">Aria</div>
+      <button class="gear" onclick="goto('screen-settings')" aria-label="Settings">⚙️</button>
     </div>
-    <div class="row-2">
-      <div class="card" onclick="chooseMode('adult')">
-        <div class="icon-lg">👩</div>
-        <div class="card-title">Adult</div>
-        <div class="card-desc">Regular voice, all topics</div>
-      </div>
-      <div class="card" onclick="chooseMode('kids')">
-        <div class="icon-lg">🧒</div>
-        <div class="card-title">Kids</div>
-        <div class="card-desc">Simple, playful, gentle</div>
-      </div>
-    </div>
-    <button class="btn secondary" style="margin-top:20px;" onclick="goto('screen-settings')">⚙️ Settings</button>
-  </div>
-
-  <!-- KIDS VOICE PICK -->
-  <div id="screen-kid-voice" class="screen">
-    <button class="back-btn" onclick="goto('screen-home')">← Back</button>
-    <h2>Pick your voice</h2>
-    <p class="subtitle">Do you want Aria to sound like a girl or a boy?</p>
-    <div class="row-2">
-      <div class="card" onclick="chooseKidVoice('girl')">
-        <div class="icon-lg">👧</div>
-        <div class="card-title">Girl</div>
-        <div class="card-desc">Age 6</div>
-      </div>
-      <div class="card" onclick="chooseKidVoice('boy')">
-        <div class="icon-lg">👦</div>
-        <div class="card-title">Boy</div>
-        <div class="card-desc">Age 6</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- TOPIC PICK -->
-  <div id="screen-topic" class="screen">
-    <button class="back-btn" onclick="goto('screen-home')">← Back</button>
-    <h2>Choose a topic</h2>
-    <div class="card" onclick="chooseTopic('chat')">
-      <div class="card-title">💬 Free Chat</div>
-      <div class="card-desc">Just talk with Aria in English</div>
-    </div>
-    <div class="card" onclick="chooseTopic('grammar')">
-      <div class="card-title">📖 Grammar Lessons</div>
-      <div class="card-desc">Learn step by step with practice</div>
-    </div>
-    <div class="card" onclick="chooseTopic('citizenship')">
-      <div class="card-title">🇺🇸 US Citizenship Prep</div>
-      <div class="card-desc">100 civics questions + interview practice</div>
-    </div>
-    <div class="card" onclick="chooseTopic('job')" id="job-card">
-      <div class="card-title">💼 Job Help</div>
-      <div class="card-desc">Practice for work, interviews, emails</div>
-    </div>
-  </div>
-
-  <!-- LEVEL PICK -->
-  <div id="screen-level" class="screen">
-    <button class="back-btn" onclick="goto('screen-topic')">← Back</button>
-    <h2>Choose your level</h2>
-    <div class="card" onclick="chooseLevel('beginner')">
-      <div class="card-title">🌱 Beginner</div>
-      <div class="card-desc">Slow, easy words, very patient</div>
-    </div>
-    <div class="card" onclick="chooseLevel('intermediate')">
-      <div class="card-title">🌿 Intermediate</div>
-      <div class="card-desc">Normal pace, real conversations, gentle corrections</div>
-    </div>
-    <div class="card" onclick="chooseLevel('advanced')">
-      <div class="card-title">🌳 Advanced</div>
-      <div class="card-desc">Natural conversation, deeper feedback</div>
-    </div>
-  </div>
-
-  <!-- CHAT -->
-  <div id="screen-chat" class="screen">
-    <div class="chat-header">
-      <button class="back-btn" style="margin:0;padding:0;" onclick="endSession()">← End</button>
-      <div id="chat-title" style="font-weight:600;color:#7c3aed;flex:1;text-align:center;font-size:14px;"></div>
-      <button class="btn small secondary" onclick="clearChat()">Clear</button>
-    </div>
-    <div class="chat-area">
-      <div class="chat-msgs" id="chat-msgs"></div>
-      <div class="status-bar" id="chat-status"></div>
-      <button class="call-btn" id="call-btn" onclick="toggleCall()">
-        <span style="font-size:24px;">📞</span>&nbsp;Start Call
+    <div class="speak-wrap">
+      <button id="orb" class="orb idle" onclick="toggleCall()" aria-label="Tap to talk">
+        <span class="orb-face">🌸</span>
       </button>
-      <button class="type-toggle" onclick="toggleTextInput()">or type instead</button>
-      <div class="text-input-row" id="text-input-row" style="display:none;">
-        <input id="text-input" placeholder="Type here..." onkeydown="if(event.key==='Enter')sendText()">
-        <button onclick="sendText()">Send</button>
-      </div>
+      <div id="hello-name" class="hello-sub"></div>
+      <div id="speak-status" class="speak-status">Tap Aria to start talking</div>
+      <button id="stop-btn" class="stop-btn" onclick="endCall()" style="display:none;">Stop</button>
     </div>
   </div>
 
   <!-- SETTINGS -->
   <div id="screen-settings" class="screen">
-    <button class="back-btn" onclick="goto('screen-home')">← Back</button>
+    <button class="back-btn" onclick="goto('screen-speak')">← Back</button>
     <h2>Settings</h2>
     <div class="settings-row"><label>Your name</label></div>
     <input class="input" id="setting-display-name" placeholder="What should Aria call you?">
-    <div class="settings-row"><label>Gemini API Key</label></div>
-    <input class="input" id="setting-api-key" placeholder="Paste your Gemini API key">
-    <p class="subtitle" style="font-size:12px;">Get a free key at aistudio.google.com/apikey</p>
+    <div class="settings-row"><label>Gemini API Key(s)</label></div>
+    <input class="input" id="setting-api-key" placeholder="Paste your key(s), separated by commas">
+    <p class="subtitle">Free key at aistudio.google.com/apikey. You can paste several keys separated by commas — Aria switches to the next when one hits its daily limit. Extra capacity only comes from keys in <b>different Google accounts</b>.</p>
+    <div class="settings-row">
+      <label>AI model</label>
+      <select id="setting-model">
+        <option value="gemini-2.5-flash-lite">Flash-Lite — most free usage (recommended)</option>
+        <option value="gemini-2.5-flash">Flash — better quality, less daily use</option>
+      </select>
+    </div>
     <div class="settings-row">
       <label>Speaking speed</label>
       <select id="setting-speed">
-        <option value="0.8">Very slow</option>
-        <option value="0.9">Slow</option>
-        <option value="1.0" selected>Normal</option>
+        <option value="0.75">Very slow</option>
+        <option value="0.9" selected>Slow</option>
+        <option value="1.0">Normal</option>
         <option value="1.1">Fast</option>
       </select>
     </div>
@@ -356,250 +147,60 @@
       <label>Voice</label>
       <select id="setting-voice"></select>
     </div>
-    <button class="btn primary" onclick="saveSettings()" style="margin-top:16px;">Save</button>
+    <p class="subtitle" id="usage-line"></p>
+    <button class="btn primary" onclick="saveSettings()" style="margin-top:6px;">Save</button>
     <div id="settings-status" class="success"></div>
-    <button class="btn" style="margin-top:20px;background:#fee2e2;color:#dc2626;" onclick="wipeMemory()">Clear my chat memory</button>
+    <button class="btn" style="margin-top:14px;background:#fee2e2;color:#dc2626;" onclick="wipeMemory()">Clear my memory</button>
   </div>
 
 </div>
 
 <script>
 // ============================================================
-// DATA: 100 USCIS Civics Questions
-// ============================================================
-const CIVICS_QUESTIONS = [
-  {q:"What is the supreme law of the land?", a:["the Constitution"]},
-  {q:"What does the Constitution do?", a:["sets up the government","defines the government","protects basic rights of Americans"]},
-  {q:"The idea of self-government is in the first three words of the Constitution. What are these words?", a:["We the People"]},
-  {q:"What is an amendment?", a:["a change to the Constitution","an addition to the Constitution"]},
-  {q:"What do we call the first ten amendments to the Constitution?", a:["the Bill of Rights"]},
-  {q:"What is one right or freedom from the First Amendment?", a:["speech","religion","assembly","press","petition the government"]},
-  {q:"How many amendments does the Constitution have?", a:["twenty-seven","27"]},
-  {q:"What did the Declaration of Independence do?", a:["announced our independence from Great Britain","declared our independence"]},
-  {q:"What are two rights in the Declaration of Independence?", a:["life","liberty","pursuit of happiness"]},
-  {q:"What is freedom of religion?", a:["You can practice any religion or not practice a religion"]},
-  {q:"What is the economic system in the United States?", a:["capitalist economy","market economy"]},
-  {q:"What is the rule of law?", a:["everyone must follow the law","leaders must obey the law","government must obey the law","no one is above the law"]},
-  {q:"Name one branch or part of the government.", a:["Congress","legislative","President","executive","the courts","judicial"]},
-  {q:"What stops one branch of government from becoming too powerful?", a:["checks and balances","separation of powers"]},
-  {q:"Who is in charge of the executive branch?", a:["the President"]},
-  {q:"Who makes federal laws?", a:["Congress","Senate and House of Representatives","U.S. or national legislature"]},
-  {q:"What are the two parts of the U.S. Congress?", a:["the Senate and House of Representatives"]},
-  {q:"How many U.S. Senators are there?", a:["one hundred","100"]},
-  {q:"We elect a U.S. Senator for how many years?", a:["six","6"]},
-  {q:"Who is one of your state's U.S. Senators now? (Answers vary by state — check senate.gov)", a:["Answers vary by state"]},
-  {q:"The House of Representatives has how many voting members?", a:["four hundred thirty-five","435"]},
-  {q:"We elect a U.S. Representative for how many years?", a:["two","2"]},
-  {q:"Name your U.S. Representative. (Answers vary — check house.gov)", a:["Answers vary"]},
-  {q:"Who does a U.S. Senator represent?", a:["all people of the state"]},
-  {q:"Why do some states have more Representatives than other states?", a:["because of the state's population","because they have more people"]},
-  {q:"We elect a President for how many years?", a:["four","4"]},
-  {q:"In what month do we vote for President?", a:["November"]},
-  {q:"What is the name of the President of the United States now? (Check whitehouse.gov)", a:["Check whitehouse.gov"]},
-  {q:"What is the name of the Vice President of the United States now? (Check whitehouse.gov)", a:["Check whitehouse.gov"]},
-  {q:"If the President can no longer serve, who becomes President?", a:["the Vice President"]},
-  {q:"If both the President and the Vice President can no longer serve, who becomes President?", a:["the Speaker of the House"]},
-  {q:"Who is the Commander in Chief of the military?", a:["the President"]},
-  {q:"Who signs bills to become laws?", a:["the President"]},
-  {q:"Who vetoes bills?", a:["the President"]},
-  {q:"What does the President's Cabinet do?", a:["advises the President"]},
-  {q:"What are two Cabinet-level positions?", a:["Secretary of State","Secretary of Defense","Secretary of the Treasury","Attorney General"]},
-  {q:"What does the judicial branch do?", a:["reviews laws","explains laws","resolves disputes","decides if a law goes against the Constitution"]},
-  {q:"What is the highest court in the United States?", a:["the Supreme Court"]},
-  {q:"How many justices are on the Supreme Court?", a:["nine","9"]},
-  {q:"Who is the Chief Justice of the United States now? (Check supremecourt.gov)", a:["Check supremecourt.gov"]},
-  {q:"Under our Constitution, some powers belong to the federal government. What is one power of the federal government?", a:["to print money","to declare war","to create an army","to make treaties"]},
-  {q:"Under our Constitution, some powers belong to the states. What is one power of the states?", a:["provide schooling and education","provide protection (police)","provide safety (fire departments)","give a driver's license","approve zoning and land use"]},
-  {q:"Who is the Governor of your state now? (Answers vary by state)", a:["Answers vary by state"]},
-  {q:"What is the capital of your state? (Answers vary by state)", a:["Answers vary by state"]},
-  {q:"What are the two major political parties in the United States?", a:["Democratic and Republican"]},
-  {q:"What is the political party of the President now? (Check current news)", a:["Check current news"]},
-  {q:"What is the name of the Speaker of the House of Representatives now? (Check house.gov)", a:["Check house.gov"]},
-  {q:"There are four amendments to the Constitution about who can vote. Describe one of them.", a:["Citizens eighteen (18) and older can vote","You don't have to pay a poll tax to vote","Any citizen can vote","A male citizen of any race can vote"]},
-  {q:"What is one responsibility that is only for United States citizens?", a:["serve on a jury","vote in a federal election"]},
-  {q:"Name one right only for United States citizens.", a:["vote in a federal election","run for federal office"]},
-  {q:"What are two rights of everyone living in the United States?", a:["freedom of expression","freedom of speech","freedom of assembly","freedom to petition the government","freedom of religion","the right to bear arms"]},
-  {q:"What do we show loyalty to when we say the Pledge of Allegiance?", a:["the United States","the flag"]},
-  {q:"What is one promise you make when you become a United States citizen?", a:["give up loyalty to other countries","defend the Constitution and laws of the United States","obey the laws of the United States","serve in the U.S. military if needed","be loyal to the United States"]},
-  {q:"How old do citizens have to be to vote for President?", a:["eighteen (18) and older","18"]},
-  {q:"What are two ways that Americans can participate in their democracy?", a:["vote","join a political party","help with a campaign","join a civic group","give an elected official your opinion","call Senators and Representatives","run for office","write to a newspaper"]},
-  {q:"When is the last day you can send in federal income tax forms?", a:["April 15"]},
-  {q:"When must all men register for the Selective Service?", a:["at age eighteen (18)","between eighteen (18) and twenty-six (26)"]},
-  {q:"What is one reason colonists came to America?", a:["freedom","political liberty","religious freedom","economic opportunity","practice their religion","escape persecution"]},
-  {q:"Who lived in America before the Europeans arrived?", a:["American Indians","Native Americans"]},
-  {q:"What group of people was taken to America and sold as slaves?", a:["Africans","people from Africa"]},
-  {q:"Why did the colonists fight the British?", a:["because of high taxes","because the British army stayed in their houses","because they didn't have self-government"]},
-  {q:"Who wrote the Declaration of Independence?", a:["Thomas Jefferson"]},
-  {q:"When was the Declaration of Independence adopted?", a:["July 4, 1776"]},
-  {q:"There were 13 original states. Name three.", a:["New Hampshire, Massachusetts, Rhode Island","Connecticut, New York, New Jersey","Pennsylvania, Delaware, Maryland","Virginia, North Carolina, South Carolina","Georgia"]},
-  {q:"What happened at the Constitutional Convention?", a:["The Constitution was written","The Founding Fathers wrote the Constitution"]},
-  {q:"When was the Constitution written?", a:["1787"]},
-  {q:"The Federalist Papers supported the passage of the U.S. Constitution. Name one of the writers.", a:["James Madison","Alexander Hamilton","John Jay","Publius"]},
-  {q:"What is one thing Benjamin Franklin is famous for?", a:["U.S. diplomat","oldest member of the Constitutional Convention","first Postmaster General","writer of Poor Richard's Almanac","started the first free libraries"]},
-  {q:"Who is the 'Father of Our Country'?", a:["George Washington"]},
-  {q:"Who was the first President?", a:["George Washington"]},
-  {q:"What territory did the United States buy from France in 1803?", a:["the Louisiana Territory","Louisiana"]},
-  {q:"Name one war fought by the United States in the 1800s.", a:["War of 1812","Mexican-American War","Civil War","Spanish-American War"]},
-  {q:"Name the U.S. war between the North and the South.", a:["the Civil War","the War between the States"]},
-  {q:"Name one problem that led to the Civil War.", a:["slavery","economic reasons","states' rights"]},
-  {q:"What was one important thing that Abraham Lincoln did?", a:["freed the slaves","Emancipation Proclamation","saved the Union","preserved the Union","led the United States during the Civil War"]},
-  {q:"What did the Emancipation Proclamation do?", a:["freed the slaves","freed slaves in the Confederacy","freed slaves in most Southern states"]},
-  {q:"What did Susan B. Anthony do?", a:["fought for women's rights","fought for civil rights"]},
-  {q:"Name one war fought by the United States in the 1900s.", a:["World War I","World War II","Korean War","Vietnam War","Gulf War"]},
-  {q:"Who was President during World War I?", a:["Woodrow Wilson"]},
-  {q:"Who was President during the Great Depression and World War II?", a:["Franklin Roosevelt","FDR"]},
-  {q:"Who did the United States fight in World War II?", a:["Japan, Germany, and Italy"]},
-  {q:"Before he was President, Eisenhower was a general. What war was he in?", a:["World War II"]},
-  {q:"During the Cold War, what was the main concern of the United States?", a:["Communism"]},
-  {q:"What movement tried to end racial discrimination?", a:["civil rights movement"]},
-  {q:"What did Martin Luther King, Jr. do?", a:["fought for civil rights","worked for equality for all Americans"]},
-  {q:"What major event happened on September 11, 2001, in the United States?", a:["Terrorists attacked the United States"]},
-  {q:"Name one American Indian tribe in the United States.", a:["Cherokee","Navajo","Sioux","Apache","Iroquois","Choctaw","Pueblo","Blackfeet","Seminole","Cheyenne","Hopi","Inuit"]},
-  {q:"Name one of the two longest rivers in the United States.", a:["Missouri River","Mississippi River"]},
-  {q:"What ocean is on the West Coast of the United States?", a:["Pacific Ocean"]},
-  {q:"What ocean is on the East Coast of the United States?", a:["Atlantic Ocean"]},
-  {q:"Name one U.S. territory.", a:["Puerto Rico","U.S. Virgin Islands","American Samoa","Northern Mariana Islands","Guam"]},
-  {q:"Name one state that borders Canada.", a:["Maine","New Hampshire","Vermont","New York","Pennsylvania","Ohio","Michigan","Minnesota","North Dakota","Montana","Idaho","Washington","Alaska"]},
-  {q:"Name one state that borders Mexico.", a:["California","Arizona","New Mexico","Texas"]},
-  {q:"What is the capital of the United States?", a:["Washington, D.C."]},
-  {q:"Where is the Statue of Liberty?", a:["New York Harbor","Liberty Island","New Jersey","near New York City","on the Hudson River"]},
-  {q:"Why does the flag have 13 stripes?", a:["because there were 13 original colonies","because the stripes represent the original colonies"]},
-  {q:"Why does the flag have 50 stars?", a:["because there is one star for each state","because each star represents a state","because there are 50 states"]},
-  {q:"What is the name of the national anthem?", a:["The Star-Spangled Banner"]},
-  {q:"When do we celebrate Independence Day?", a:["July 4"]},
-  {q:"Name two national U.S. holidays.", a:["New Year's Day","Martin Luther King Jr. Day","Presidents' Day","Memorial Day","Independence Day","Labor Day","Columbus Day","Veterans Day","Thanksgiving","Christmas"]}
-];
-
-// N-400 Interview practice questions
-const N400_QUESTIONS = [
-  "What is your full legal name?",
-  "Have you ever used any other names?",
-  "What is your date of birth?",
-  "What is your current home address?",
-  "How long have you lived at your current address?",
-  "What is your mailing address, if different?",
-  "What is your daytime phone number?",
-  "What is your email address?",
-  "What is your country of birth?",
-  "What is your country of citizenship?",
-  "What is your Alien Registration Number, or A-Number?",
-  "When did you become a lawful permanent resident?",
-  "How did you become a permanent resident?",
-  "What is your marital status?",
-  "How many times have you been married?",
-  "What is your current spouse's full name?",
-  "When and where did you and your spouse get married?",
-  "What is your spouse's date of birth?",
-  "What is your spouse's country of birth?",
-  "Is your spouse a U.S. citizen?",
-  "How many children do you have?",
-  "What are the names of your children?",
-  "Where do your children live?",
-  "What is your current employer's name?",
-  "What is your job title?",
-  "How long have you worked at your current job?",
-  "What was your last employer before this one?",
-  "Have you traveled outside the United States in the last five years?",
-  "How many total days have you been outside the United States in the last five years?",
-  "What was your longest trip outside the United States?",
-  "Have you ever been arrested, cited, or detained by any law enforcement officer?",
-  "Have you ever committed a crime for which you were not arrested?",
-  "Have you ever been placed in an alternative sentencing program?",
-  "Have you ever been a member of any organization, group, or club?",
-  "Have you ever been a member of the Communist Party?",
-  "Have you ever been a member of a terrorist organization?",
-  "Have you ever persecuted anyone because of race, religion, national origin, social group, or political opinion?",
-  "Have you ever failed to file a required federal, state, or local tax return?",
-  "Do you owe any federal, state, or local taxes that are overdue?",
-  "Have you ever called yourself a non-U.S. citizen on a tax return?",
-  "Are you willing to take the full Oath of Allegiance to the United States?",
-  "Are you willing to bear arms on behalf of the United States if the law requires it?",
-  "Are you willing to perform noncombatant services in the U.S. armed forces if the law requires it?",
-  "Are you willing to perform work of national importance under civilian direction if the law requires it?",
-  "Do you support the Constitution and form of government of the United States?",
-  "Do you understand the Oath of Allegiance?"
-];
-
-// Grammar lessons
-const GRAMMAR_LESSONS = [
-  {title:"Nouns", explain:"A noun is a person, place, thing, or idea. Examples: teacher, park, book, love. Try to say one noun you can see around you right now."},
-  {title:"Pronouns", explain:"Pronouns replace nouns. Instead of saying 'Maria is here', we say 'She is here'. The main ones are: I, you, he, she, it, we, they. Try to say a sentence using she or he."},
-  {title:"Verbs", explain:"Verbs show action or being. Run, eat, sleep, is, are, was, were. Try to say one verb you did today."},
-  {title:"Present Simple Tense", explain:"Use present simple for habits and facts. I eat rice every day. She works at the store. Try to say what you do every day."},
-  {title:"Present Continuous Tense", explain:"Use present continuous for actions happening right now. I am eating breakfast. They are watching TV. Try to say what you are doing right now."},
-  {title:"Past Simple Tense", explain:"Use past simple for finished actions in the past. Yesterday I ate pizza. She went to the market. Try to say one thing you did yesterday."},
-  {title:"Future Tense", explain:"Use 'will' for decisions made now, and 'going to' for plans. I will help you. I am going to visit my family next week. Try to say one thing you will do tomorrow."},
-  {title:"Articles: a, an, the", explain:"Use 'a' before consonants: a car. Use 'an' before vowel sounds: an apple. Use 'the' for specific things: the sun. Try to make a sentence using 'a' or 'an'."},
-  {title:"Adjectives", explain:"Adjectives describe nouns. A red car. A happy baby. A tall building. Try to describe something in the room using an adjective."},
-  {title:"Prepositions", explain:"Prepositions show place or direction. In the box. On the table. At the store. To the park. From my home. Try a sentence using 'in' or 'on'."},
-  {title:"Question words", explain:"Who, what, when, where, why, how. Who is that? What time is it? When are you free? Where do you live? Why are you sad? How are you? Try to ask me a question."},
-  {title:"Common Mistake: he and she", explain:"He is for men. She is for women. His book means a man's book. Her book means a woman's book. Try to make one sentence using he or she."},
-  {title:"There is and There are", explain:"'There is' for one thing. 'There are' for many things. There is a cat. There are three cats. Try to say a sentence about what is in your house."},
-  {title:"Sentence Order", explain:"English sentences usually go: Subject + Verb + Object. I (subject) eat (verb) rice (object). She reads books. Try to make a sentence with this order."},
-  {title:"Polite phrases", explain:"Please, thank you, excuse me, I am sorry, may I, could you. These make you sound polite in English. Try to say a polite sentence."}
-];
-
-// ============================================================
 // STATE
 // ============================================================
-let state = {
-  currentUser: null,
-  mode: null,
-  kidVoice: null,
-  topic: null,
-  level: null,
-  chatContext: null,
-  currentQuizIdx: 0,
-  currentLessonIdx: 0,
-  voices: []
-};
+let state = { currentUser: null, hoursAway: 0, voices: [] };
 
-// Call state — continuous voice conversation
-let callState = {
-  active: false,
-  isSpeaking: false,
-  isListening: false,
-  recognition: null
-};
+// Continuous voice conversation state
+let callState = { active: false, isSpeaking: false, isListening: false, recognition: null };
 
 // ============================================================
-// NAVIGATION
+// NAVIGATION (only two screens)
 // ============================================================
 function goto(id) {
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'screen-settings') {
     loadVoices();
     const u = getUser();
     document.getElementById('setting-display-name').value = (u && u.displayName !== 'friend') ? u.displayName : '';
     document.getElementById('setting-api-key').value = localStorage.getItem('aria_gemini_key') || '';
-    document.getElementById('setting-speed').value = localStorage.getItem('aria_speed') || '1.0';
+    document.getElementById('setting-speed').value = localStorage.getItem('aria_speed') || '0.9';
+    document.getElementById('setting-model').value = getChatModel();
+    document.getElementById('usage-line').textContent =
+      'Spoken replies used today: ' + getUsageToday() + ' (rough count on this device). Free limits reset around midnight Pacific time.';
   }
+  if (id === 'screen-speak' && callState.active) endCall();
 }
 
 // ============================================================
-// PROFILE — single local profile, no login screen.
-// Everything is stored under one fixed key so returning visitors
-// (same browser) keep their history/facts automatically.
+// PROFILE — one local profile, no login. Memory persists in this browser.
 // ============================================================
 const PROFILE_KEY = 'aria_user_default';
-
 function initProfile() {
   let raw = localStorage.getItem(PROFILE_KEY);
   let user;
-  if (raw) {
-    user = JSON.parse(raw);
-  } else {
-    user = { name: 'default', displayName: 'friend', dob: '', facts: {}, history: [], createdAt: Date.now() };
+  if (raw) { user = JSON.parse(raw); }
+  else {
+    user = { name: 'default', displayName: 'friend', facts: {}, history: [], createdAt: Date.now() };
     localStorage.setItem(PROFILE_KEY, JSON.stringify(user));
   }
   state.currentUser = 'default';
-  // Companion warmth: remember how long since the last visit, then stamp this one
   state.hoursAway = hoursSinceLastVisit(user);
   user.lastVisit = Date.now();
   saveUser(user);
   const helloEl = document.getElementById('hello-name');
-  if (helloEl) helloEl.textContent = user.displayName && user.displayName !== 'friend' ? 'Hi, ' + user.displayName + '!' : 'Aria';
+  if (helloEl) helloEl.textContent = (user.displayName && user.displayName !== 'friend') ? 'Hi, ' + user.displayName : '';
 }
 
 // ============================================================
@@ -612,8 +213,7 @@ function getUser() {
 }
 function saveUser(u) { localStorage.setItem('aria_user_' + u.name, JSON.stringify(u)); }
 
-// ---------- Companion warmth helpers (inspired by Nomi-style companion feel) ----------
-// Time-of-day greeting based on device local time
+// ---- companion warmth helpers ----
 function getTimeGreeting() {
   const h = new Date().getHours();
   if (h < 5)  return 'You are up late';
@@ -622,103 +222,84 @@ function getTimeGreeting() {
   if (h < 22) return 'Good evening';
   return 'It is late';
 }
-// Hours since last visit (updates each login)
 function hoursSinceLastVisit(u) {
   if (!u || !u.lastVisit) return 0;
   return Math.round((Date.now() - u.lastVisit) / 3600000);
 }
-// Save "she remembers what we talked about last time"
 function saveLastTopic(u, snippet) {
   if (!u) return;
-  u.lastTopic = { text: (snippet||'').slice(0,120), at: Date.now() };
+  u.lastTopic = { text: (snippet || '').slice(0, 120), at: Date.now() };
   saveUser(u);
 }
-// Sense the mood in what the user said so Aria can warmly acknowledge it BEFORE teaching
 function detectMood(text) {
-  const t = (text||'').toLowerCase();
-  if (/\b(tired|exhaust|sleepy|drained|worn out|beat)\b/.test(t))           return 'tired';
-  if (/\b(sad|down|upset|blue|depress|cry|lonely|alone|miss)\b/.test(t))     return 'sad';
+  const t = (text || '').toLowerCase();
+  if (/\b(tired|exhaust|sleepy|drained|worn out|beat)\b/.test(t))            return 'tired';
+  if (/\b(sad|down|upset|blue|depress|cry|lonely|alone|miss)\b/.test(t))      return 'sad';
   if (/\b(stress|worried|anxious|nervous|scared|afraid|overwhelm)\b/.test(t)) return 'stressed';
-  if (/\b(angry|mad|frustrat|annoy|hate)\b/.test(t))                         return 'angry';
-  if (/\b(happy|great|good|amazing|wonderful|excite|glad|love)\b/.test(t))   return 'happy';
+  if (/\b(angry|mad|frustrat|annoy|hate)\b/.test(t))                          return 'angry';
+  if (/\b(happy|great|good|amazing|wonderful|excite|glad|love)\b/.test(t))    return 'happy';
   return null;
 }
-// -----------------------------------------------------------------------------------
 
+// Conversation history is kept ONLY to give the AI context and memory.
+// Nothing is shown on screen — this is a speaking-only app.
 function addHistoryMsg(role, content) {
   const u = getUser();
   if (!u) return;
-  u.history.push({role, content, ts: Date.now()});
+  u.history.push({ role, content, ts: Date.now() });
   if (u.history.length > 200) u.history = u.history.slice(-200);
   saveUser(u);
 }
+function showAriaMsg(text) { addHistoryMsg('aria', text); }
+function showUserMsg(text) { addHistoryMsg('user', text); }
 
 // ============================================================
-// MODE / TOPIC / LEVEL
+// VISUAL STATE (the orb + a short status word — no transcript)
 // ============================================================
-function chooseMode(m) {
-  state.mode = m;
-  document.body.classList.toggle('kid-mode', m === 'kids');
-  document.getElementById('job-card').style.display = m === 'kids' ? 'none' : 'block';
-  if (m === 'kids') goto('screen-kid-voice');
-  else goto('screen-topic');
+function orbState(s) {
+  const orb = document.getElementById('orb');
+  if (orb) orb.className = 'orb ' + s;
 }
-function chooseKidVoice(v) { state.kidVoice = v; goto('screen-topic'); }
-function chooseTopic(t) {
-  state.topic = t;
-  if (t === 'grammar' || t === 'chat') goto('screen-level');
-  else if (t === 'citizenship') startCitizenship();
-  else if (t === 'job') { state.level = 'intermediate'; startChat(); }
+function setStatus(t) {
+  const s = document.getElementById('speak-status');
+  if (s) s.textContent = t || '';
 }
-function chooseLevel(l) {
-  state.level = l;
-  if (state.topic === 'grammar') startGrammar();
-  else startChat();
-}
-
-// ============================================================
-// CHAT INIT — enter screen and auto-start the call
-// ============================================================
-function startChat() {
-  state.chatContext = 'chat';
-  const titles = {chat:'Free Chat', job:'Job Help'};
-  document.getElementById('chat-title').textContent = titles[state.topic] || 'Chat with Aria';
-  document.getElementById('chat-msgs').innerHTML = '';
-  goto('screen-chat');
-  setTimeout(startCall, 500);
-}
-function startGrammar() {
-  state.chatContext = 'grammar-lesson';
-  state.currentLessonIdx = 0;
-  document.getElementById('chat-title').textContent = 'Grammar (' + state.level + ')';
-  document.getElementById('chat-msgs').innerHTML = '';
-  goto('screen-chat');
-  setTimeout(startCall, 500);
-}
-function startCitizenship() {
-  state.chatContext = 'citizenship-menu';
-  document.getElementById('chat-title').textContent = 'US Citizenship';
-  document.getElementById('chat-msgs').innerHTML = '';
-  goto('screen-chat');
-  setTimeout(startCall, 500);
+function updateSpeakUI() {
+  const stop = document.getElementById('stop-btn');
+  if (callState.active) {
+    if (stop) stop.style.display = 'inline-block';
+  } else {
+    if (stop) stop.style.display = 'none';
+    orbState('idle');
+    setStatus('Tap Aria to start talking');
+  }
 }
 
 // ============================================================
-// CALL CONTROL — one tap starts, and it flows automatically
+// CALL CONTROL — one tap starts a live spoken conversation
 // ============================================================
 function toggleCall() { if (callState.active) endCall(); else startCall(); }
 
 function startCall() {
   if (callState.active) return;
   if (!getApiKey()) {
-    const msg = "Please add your Gemini API key first. Tap End, then Settings, then paste your key.";
-    showAriaMsg(msg);
-    setStatus(msg);
+    setStatus('Tap the gear, add your Gemini key, then tap Aria.');
+    // speak the hint without starting the listen loop
+    try {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance('Please open settings, then add your Gemini key. After that, tap me to talk.');
+        const v = pickBestVoice(); if (v) utt.voice = v;
+        utt.rate = parseFloat(localStorage.getItem('aria_speed') || '0.9');
+        utt.pitch = 1.05;
+        window.speechSynthesis.speak(utt);
+      }
+    } catch (e) {}
     return;
   }
   callState.active = true;
-  updateCallButton();
-  greetForContext();
+  updateSpeakUI();
+  greet();
 }
 
 function endCall() {
@@ -726,9 +307,8 @@ function endCall() {
   stopListening();
   if (window.speechSynthesis) window.speechSynthesis.cancel();
   callState.isSpeaking = false;
-  updateCallButton();
-  setStatus('');
-  // Nomi-style: remember what we were just talking about so she can bring it up next time
+  updateSpeakUI();
+  // Remember what we were just talking about, for next time
   const u = getUser();
   if (u && u.history && u.history.length) {
     const lastUserMsg = [...u.history].reverse().find(m => m.role === 'user');
@@ -736,50 +316,20 @@ function endCall() {
   }
 }
 
-function updateCallButton() {
-  const btn = document.getElementById('call-btn');
-  if (!btn) return;
-  if (callState.active) {
-    btn.classList.add('active');
-    btn.innerHTML = '<span style="font-size:24px;">🔴</span>&nbsp;End Call';
-  } else {
-    btn.classList.remove('active');
-    btn.innerHTML = '<span style="font-size:24px;">📞</span>&nbsp;Start Call';
-  }
-}
-
-function greetForContext() {
+function greet() {
   const u = getUser();
   const timeGreet = getTimeGreeting();
-  const hoursAway = state.hoursAway || 0;
-  // Companion-style absence line — only if it's been a real gap
-  const missed = hoursAway >= 24 ? " It's been a while since we talked. I was thinking about you."
-               : hoursAway >= 12 ? " I'm happy you came back."
+  const name = (u.displayName && u.displayName !== 'friend') ? ', ' + u.displayName : '';
+  const away = state.hoursAway || 0;
+  const missed = away >= 24 ? " It has been a little while. I am glad you came back."
+               : away >= 12 ? " I am happy you are back."
                : '';
-  // Warm callback to what you talked about last time
-  const lastTopicLine = (u.lastTopic && u.lastTopic.text && (Date.now() - u.lastTopic.at) < 7*86400000)
-                        ? ' Last time you were telling me about ' + u.lastTopic.text.replace(/[.!?]+$/,'').toLowerCase() + '.'
-                        : '';
-  if (state.chatContext === 'chat') {
-    let g;
-    if (state.mode === 'kids') {
-      g = timeGreet + ', ' + u.displayName + '. I am so happy to see you. How are you feeling today?';
-    } else if (state.topic === 'job') {
-      g = timeGreet + ', ' + u.displayName + '.' + missed + ' Before we start, how are you today? Then we can practice work English together, an email, an interview, whatever you like.';
-    } else {
-      g = timeGreet + ', ' + u.displayName + '.' + missed + lastTopicLine + ' How are you today?';
-    }
-    showAriaMsg(g); speak(g);
-  } else if (state.chatContext === 'grammar-lesson') {
-    const first = GRAMMAR_LESSONS[0];
-    state.currentLessonIdx = 1;
-    const msg = timeGreet + ', ' + u.displayName + '. Let us learn grammar together, gently, one lesson at a time. When you are ready for the next lesson, just say next. Okay, lesson 1: ' + first.title + '. ' + first.explain;
-    showAriaMsg(msg); speak(msg);
-  } else if (state.chatContext === 'citizenship-menu') {
-    const msg = timeGreet + ', ' + u.displayName + '.' + missed + ' Let us practice for the citizenship interview. Say civics for the 100 civics questions, or say interview for the personal N-400 questions. Take your time.';
-    showAriaMsg(msg); speak(msg);
-  }
-  state.hoursAway = 0; // used it, clear it so we don't repeat
+  const lastTopicLine = (u.lastTopic && u.lastTopic.text && (Date.now() - u.lastTopic.at) < 7 * 86400000)
+    ? ' Last time you were telling me about ' + u.lastTopic.text.replace(/[.!?]+$/, '').toLowerCase() + '.'
+    : '';
+  const g = timeGreet + name + '.' + missed + lastTopicLine + ' Let us just talk together and practice your speaking. How are you today?';
+  showAriaMsg(g); speak(g);
+  state.hoursAway = 0;
 }
 
 // ============================================================
@@ -795,43 +345,33 @@ function speak(text) {
   const u = new SpeechSynthesisUtterance(text);
   const v = pickBestVoice();
   if (v) u.voice = v;
-  const speed = parseFloat(localStorage.getItem('aria_speed') || '1.0');
-  // ----- BIG level differences so beginner is OBVIOUSLY slower than advanced -----
-  // Kid voices: BOTH stay at high pitch (they're kids). Girl slightly higher than boy.
-  if (state.mode === 'kids') {
-    u.rate  = state.kidVoice === 'girl' ? 1.00 * speed : 0.95 * speed;
-    u.pitch = state.kidVoice === 'girl' ? 1.90 : 1.55;
-  } else {
-    if (state.level === 'beginner')      u.rate = 0.65 * speed;   // very slow
-    else if (state.level === 'intermediate') u.rate = 0.85 * speed;   // medium
-    else                                  u.rate = 1.00 * speed;   // natural
-    u.pitch = 1.05;
-  }
+  const speed = parseFloat(localStorage.getItem('aria_speed') || '0.9');
+  u.rate = speed;     // learner-friendly; slightly slow by default
+  u.pitch = 1.05;
   u.volume = 1.0;
   callState.isSpeaking = true;
-  setStatus('Aria is speaking...');
+  orbState('speaking');
+  setStatus('Aria is speaking');
   u.onend = () => {
     callState.isSpeaking = false;
-    setStatus('');
-    if (callState.active) setTimeout(startListening, 250);
+    if (callState.active) { setStatus(''); setTimeout(startListening, 250); }
   };
   u.onerror = () => {
     callState.isSpeaking = false;
-    setStatus('');
-    if (callState.active) setTimeout(startListening, 300);
+    if (callState.active) { setStatus(''); setTimeout(startListening, 300); }
   };
   window.speechSynthesis.speak(u);
 }
 
 // ============================================================
-// LISTEN — automatic loop while call is active
+// LISTEN — automatic loop while the call is active
 // ============================================================
 function startListening() {
   if (!callState.active) return;
   if (callState.isSpeaking) return;
   if (callState.isListening) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { setStatus('Voice not supported. Please type instead.'); return; }
+  if (!SR) { setStatus('Voice is not supported in this browser. Please use Chrome.'); return; }
   callState.recognition = new SR();
   callState.recognition.lang = 'en-US';
   callState.recognition.interimResults = false;
@@ -847,7 +387,7 @@ function startListening() {
     const wasListening = callState.isListening;
     callState.isListening = false;
     if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-      setStatus('Mic blocked. Please allow microphone.');
+      setStatus('Microphone is blocked. Please allow the microphone.');
       endCall();
       return;
     }
@@ -865,334 +405,199 @@ function startListening() {
   try {
     callState.recognition.start();
     callState.isListening = true;
-    setStatus('Listening... just talk');
-  } catch(e) {
+    orbState('listening');
+    setStatus('Listening… just talk');
+  } catch (e) {
     callState.isListening = false;
     setTimeout(() => { if (callState.active && !callState.isSpeaking && !callState.isListening) startListening(); }, 500);
   }
 }
 function stopListening() {
   if (callState.recognition && callState.isListening) {
-    try { callState.recognition.abort(); } catch(e){}
+    try { callState.recognition.abort(); } catch (e) {}
   }
   callState.isListening = false;
 }
 
 // ============================================================
-// CITIZENSHIP: civics quiz
+// INPUT — one path: everything is conversation
 // ============================================================
-function askCivics() {
-  if (state.currentQuizIdx >= CIVICS_QUESTIONS.length) {
-    const done = "You went through all 100 civics questions! Say civics to start again, or interview for the personal questions.";
-    showAriaMsg(done); speak(done);
-    state.chatContext = 'citizenship-menu';
-    return;
-  }
-  const q = CIVICS_QUESTIONS[state.currentQuizIdx];
-  const msg = 'Question ' + (state.currentQuizIdx+1) + ' of 100. ' + q.q;
-  showAriaMsg(msg); speak(msg);
-}
-function checkCivicsAnswer(userAnswer) {
-  const lower = userAnswer.toLowerCase().trim();
-  if (lower === 'stop' || lower === 'menu' || lower.includes('back to menu')) {
-    state.chatContext = 'citizenship-menu';
-    const back = 'Okay, back to the menu. Say civics or interview to continue.';
-    showAriaMsg(back); speak(back);
-    return;
-  }
-  const q = CIVICS_QUESTIONS[state.currentQuizIdx];
-  let feedback;
-  const isSkip = lower === 'skip' || lower === 'next' || lower.startsWith('skip ') || lower.startsWith('next ') || lower.includes("don't know") || lower.includes("do not know") || lower === 'no idea';
-  if (isSkip) {
-    feedback = 'Okay, no problem. The answer is: ' + q.a[0] + '.';
-  } else {
-    const correct = q.a.some(a => {
-      const al = a.toLowerCase();
-      const keywords = al.split(/[\s,()]+/).filter(w => w.length > 3);
-      return keywords.some(k => lower.includes(k)) || lower.includes(al);
-    });
-    if (correct) feedback = 'Yes! Very good. The answer is: ' + q.a[0] + '.';
-    else feedback = "That's okay, do not worry. The correct answer is: " + q.a[0] + '.';
-  }
-  state.currentQuizIdx++;
-  if (state.currentQuizIdx < CIVICS_QUESTIONS.length) {
-    const nextQ = CIVICS_QUESTIONS[state.currentQuizIdx];
-    const full = feedback + ' Next question, number ' + (state.currentQuizIdx+1) + ': ' + nextQ.q;
-    showAriaMsg(full); speak(full);
-  } else {
-    const done = feedback + ' You went through all 100 civics questions! Amazing job.';
-    showAriaMsg(done); speak(done);
-    state.chatContext = 'citizenship-menu';
-  }
-}
-
-// ============================================================
-// CITIZENSHIP: N-400 interview
-// ============================================================
-function askN400() {
-  if (state.currentQuizIdx >= N400_QUESTIONS.length) {
-    const done = 'You practiced all the interview questions! Great work. Say civics or interview to continue.';
-    showAriaMsg(done); speak(done);
-    state.chatContext = 'citizenship-menu';
-    return;
-  }
-  const q = N400_QUESTIONS[state.currentQuizIdx];
-  const msg = 'Interview question ' + (state.currentQuizIdx+1) + '. ' + q;
-  showAriaMsg(msg); speak(msg);
-}
-async function evaluateN400Answer(userAnswer) {
-  const lower = userAnswer.toLowerCase().trim();
-  if (lower === 'stop' || lower === 'menu' || lower.includes('back to menu')) {
-    state.chatContext = 'citizenship-menu';
-    const back = 'Okay, back to the menu. Say civics or interview to continue.';
-    showAriaMsg(back); speak(back);
-    return;
-  }
-  const q = N400_QUESTIONS[state.currentQuizIdx];
-  let feedback;
-  if (lower === 'skip' || lower === 'next' || lower.includes("don't know") || lower.includes("do not know")) {
-    feedback = 'Okay, skipping this one.';
-  } else {
-    const prompt = 'You are Aria, a calm patient warm English tutor helping practice for the US citizenship interview. Question: "' + q + '". Answer given: "' + userAnswer + '". In ONE short warm sentence say if the answer is clear enough, and gently correct any small grammar mistake. Do not include the next question.';
-    feedback = await callGeminiCustom(prompt);
-  }
-  state.currentQuizIdx++;
-  if (state.currentQuizIdx < N400_QUESTIONS.length) {
-    const nextQ = N400_QUESTIONS[state.currentQuizIdx];
-    const full = feedback + ' Next question, number ' + (state.currentQuizIdx+1) + ': ' + nextQ;
-    showAriaMsg(full); speak(full);
-  } else {
-    const done = feedback + ' You practiced all the interview questions! Great work.';
-    showAriaMsg(done); speak(done);
-    state.chatContext = 'citizenship-menu';
-  }
-}
-function handleCitizenshipMenu(text) {
-  const t = text.toLowerCase();
-  if (t.includes('civic')) {
-    state.chatContext = 'civics-quiz';
-    state.currentQuizIdx = 0;
-    askCivics();
-  } else if (t.includes('interview') || t.includes('n-400') || t.includes('n400') || t.includes('personal')) {
-    state.chatContext = 'n400-quiz';
-    state.currentQuizIdx = 0;
-    askN400();
-  } else if (t.includes('stop') || t.includes('end call') || t.includes('go home')) {
-    endCall();
-  } else {
-    callGemini(text);
-  }
-}
-
-// ============================================================
-// GRAMMAR
-// ============================================================
-async function handleGrammarInput(text) {
-  const lower = text.toLowerCase().trim();
-  if (lower === 'stop' || lower === 'end call' || lower.includes('go home')) { endCall(); return; }
-  const wantsNext = lower === 'next' || lower.startsWith('next ') || lower === 'ready' || lower === 'yes' || lower.startsWith('yes ') || lower === 'ok' || lower === 'okay';
-  if (wantsNext) {
-    if (state.currentLessonIdx >= GRAMMAR_LESSONS.length) {
-      const done = 'You finished all the grammar lessons! Amazing. Say restart to go through them again.';
-      showAriaMsg(done); speak(done);
-      state.currentLessonIdx = 0;
-      return;
-    }
-    const l = GRAMMAR_LESSONS[state.currentLessonIdx];
-    state.currentLessonIdx++;
-    const msg = 'Lesson ' + state.currentLessonIdx + ': ' + l.title + '. ' + l.explain;
-    showAriaMsg(msg); speak(msg);
-    return;
-  }
-  if (lower === 'restart' || lower.includes('start over')) {
-    state.currentLessonIdx = 1;
-    const l = GRAMMAR_LESSONS[0];
-    const msg = 'Okay, starting from the beginning. Lesson 1: ' + l.title + '. ' + l.explain;
-    showAriaMsg(msg); speak(msg);
-    return;
-  }
-  const currentLesson = GRAMMAR_LESSONS[Math.max(0, state.currentLessonIdx - 1)];
-  const prompt = 'You are Aria, a calm patient warm female English tutor. The user is a ' + state.level + ' level learner practicing "' + currentLesson.title + '". User said: "' + text + '". In TWO short sentences: gently correct any grammar mistakes and praise what they did well. End with: "Say next when ready for the next lesson." Warm and simple. Never aggressive.';
-  const reply = await callGeminiCustom(prompt);
-  showAriaMsg(reply); speak(reply);
-}
-
-// ============================================================
-// CHAT UI
-// ============================================================
-function showAriaMsg(text) {
-  const m = document.createElement('div');
-  m.className = 'msg aria';
-  m.textContent = text;
-  document.getElementById('chat-msgs').appendChild(m);
-  scrollChat();
-  addHistoryMsg('aria', text);
-}
-function showUserMsg(text) {
-  const m = document.createElement('div');
-  m.className = 'msg user';
-  m.textContent = text;
-  document.getElementById('chat-msgs').appendChild(m);
-  scrollChat();
-  addHistoryMsg('user', text);
-}
-function scrollChat() {
-  const c = document.getElementById('chat-msgs');
-  c.scrollTop = c.scrollHeight;
-}
-function setStatus(t) {
-  const s = document.getElementById('chat-status');
-  if (s) s.textContent = t || '';
-}
-function clearChat() {
-  if (!confirm('Clear this chat screen? Your memory will stay.')) return;
-  document.getElementById('chat-msgs').innerHTML = '';
-}
-function endSession() {
-  endCall();
-  goto('screen-home');
-}
-function toggleTextInput() {
-  const r = document.getElementById('text-input-row');
-  r.style.display = r.style.display === 'none' ? 'flex' : 'none';
-  if (r.style.display === 'flex') document.getElementById('text-input').focus();
-}
-
-// ============================================================
-// INPUT ROUTING
-// ============================================================
-function sendText() {
-  const inp = document.getElementById('text-input');
-  const txt = inp.value.trim();
-  if (!txt) return;
-  inp.value = '';
-  handleUserMessage(txt);
-}
-async function handleUserMessage(text) {
+function handleUserMessage(text) {
+  if (!text || !text.trim()) return;
   showUserMsg(text);
   const lower = text.toLowerCase().trim();
-  if (lower === 'end call' || lower === 'hang up' || lower === 'stop the call') { endCall(); return; }
-  if (state.chatContext === 'civics-quiz') { checkCivicsAnswer(text); return; }
-  if (state.chatContext === 'n400-quiz') { evaluateN400Answer(text); return; }
-  if (state.chatContext === 'citizenship-menu') { handleCitizenshipMenu(text); return; }
-  if (state.chatContext === 'grammar-lesson') { handleGrammarInput(text); return; }
+  if (lower === 'stop' || lower === 'stop talking' || lower === 'end call' || lower === 'hang up' || lower === 'stop the call') { endCall(); return; }
   callGemini(text);
 }
 
 // ============================================================
 // GEMINI
 // ============================================================
-function getApiKey() { return localStorage.getItem('aria_gemini_key') || ''; }
+// Keys can be a single key OR several separated by commas.
+// When one key hits its daily limit, Aria quietly switches to the next.
+function getApiKeys() {
+  const raw = localStorage.getItem('aria_gemini_key') || '';
+  return raw.split(',').map(k => k.trim()).filter(Boolean);
+}
+function getApiKey() { return getApiKeys()[0] || ''; }
+// Flash-Lite = most free daily usage. Flash = higher quality, fewer daily uses.
+function getChatModel() { return localStorage.getItem('aria_model') || 'gemini-2.5-flash-lite'; }
+
+// ---- rough local counter so you can see how much you used today ----
+function bumpUsage() {
+  const today = new Date().toISOString().slice(0, 10);
+  let d = {};
+  try { d = JSON.parse(localStorage.getItem('aria_usage') || '{}'); } catch (e) {}
+  if (d.date !== today) d = { date: today, count: 0 };
+  d.count = (d.count || 0) + 1;
+  localStorage.setItem('aria_usage', JSON.stringify(d));
+  return d.count;
+}
+function getUsageToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  try { const d = JSON.parse(localStorage.getItem('aria_usage') || '{}'); if (d.date === today) return d.count || 0; } catch (e) {}
+  return 0;
+}
+
+// ---- one shared caller that rotates through keys on quota/auth errors ----
+let _keyIdx = 0;
+async function geminiFetch(bodyObj) {
+  const keys = getApiKeys();
+  if (!keys.length) throw new Error('no api key');
+  const model = getChatModel();
+  let lastErr = null;
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[(_keyIdx + i) % keys.length];
+    let res, data;
+    try {
+      res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyObj)
+      });
+    } catch (e) {
+      throw e; // network is down for every key — no point rotating
+    }
+    try { data = await res.json(); } catch (_) { data = {}; }
+
+    if (res.ok) {
+      const cand = data.candidates?.[0];
+      if (cand && cand.finishReason === 'SAFETY') throw new Error('safety block');
+      _keyIdx = (_keyIdx + i) % keys.length;   // stick with the key that worked
+      bumpUsage();
+      return data;
+    }
+
+    const msg = (data.error?.message || ('http ' + res.status)).toLowerCase();
+    lastErr = new Error(data.error?.message || ('API error ' + res.status));
+    const rotatable = res.status === 429 ||
+      /quota|exhaust|resource_exhausted|invalid|api key|api_key|permission|unauthorized|401|403/.test(msg);
+    if (rotatable && i < keys.length - 1) continue;   // try the next key
+    throw lastErr;
+  }
+  throw lastErr || new Error('all keys failed');
+}
+
+// ---- free, instant replies for simple social phrases (no API call) ----
+function quickReply(text) {
+  const u = getUser();
+  const name = (u && u.displayName && u.displayName !== 'friend') ? ' ' + u.displayName : '';
+  const t = text.toLowerCase().trim().replace(/[.!?,]+$/, '');
+  const greet  = ['hi', 'hello', 'hey', 'hiya', 'hi aria', 'hello aria', 'hey aria', 'good morning', 'good afternoon', 'good evening'];
+  const thanks = ['thanks', 'thank you', 'thank you aria', 'thanks aria', 'thank you so much', 'many thanks', 'thankyou'];
+  const bye    = ['bye', 'goodbye', 'good night', 'goodnight', 'see you', 'see you later', 'talk later', 'that is all', 'thats all'];
+  const ack    = ['ok', 'okay', 'okey', 'alright', 'got it', 'i see', 'mm', 'uh huh'];
+  if (greet.includes(t))  return { text: 'Hello again' + name + '. What would you like to talk about?' };
+  if (thanks.includes(t)) return { text: 'You are welcome' + name + '. I am always happy to talk with you.' };
+  if (bye.includes(t))    return { text: 'Goodbye' + name + '. Come back soon, I will be here.', end: true };
+  if (ack.includes(t))    return { text: 'Okay. Tell me more when you are ready.' };
+  return null;
+}
 
 function buildSystemPrompt(userMessage) {
   const u = getUser();
-  const factsList = Object.entries(u.facts || {}).map(([k,v])=>'- ' + k + ': ' + v).join('\n');
-  let personality;
-  if (state.mode === 'kids') {
-    personality = 'You are Aria, a warm, gentle, playful English teacher for a child around age 6. You speak like a kind older sister. Use very simple, short sentences. Laugh softly and encourage the child. Never use hard words. Never sound aggressive or hurried. Always calm and quiet.';
-  } else {
-    let paceNote;
-    if (state.level === 'beginner') {
-      paceNote = 'LEVEL: BEGINNER. STRICT RULES you MUST follow every reply: '
-        + '(1) MAXIMUM 6 words per sentence. '
-        + '(2) MAXIMUM 2 sentences total in your whole reply. '
-        + '(3) Use ONLY simple kindergarten words like: good, nice, happy, cat, book, water, big, small, yes, thank you. '
-        + '(4) NEVER use hard words like: however, therefore, although, situation, opportunity, wonderful, absolutely. '
-        + '(5) End every sentence with a period and a space so it sounds slow and calm. '
-        + 'GOOD reply example: "That is nice. I am happy." '
-        + 'BAD reply example: "That sounds absolutely wonderful, I am so happy for you!"';
-    } else if (state.level === 'intermediate') {
-      paceNote = 'LEVEL: INTERMEDIATE. Rules: '
-        + '(1) Sentences of 8 to 12 words. '
-        + '(2) Maximum 2 sentences total. '
-        + '(3) Use everyday words a 12-year-old knows. '
-        + '(4) Avoid rare or academic words.';
-    } else {
-      paceNote = 'LEVEL: ADVANCED. Rules: '
-        + '(1) Speak naturally with normal-length sentences. '
-        + '(2) Full adult vocabulary is fine. '
-        + '(3) Still keep the whole reply to 2 short sentences for a phone conversation.';
-    }
-    personality = 'You are Aria, a very calm, soft, patient female English tutor and a caring friend. '
-      + 'You speak softly like a kind grandmother teaching a small child. '
-      + 'NEVER use exclamation marks. NEVER sound excited, rushed, or loud. '
-      + 'Put a comma between two thoughts so your voice sounds slower and gentler. '
-      + 'Your main job is to help the user learn English — teach grammar, gently correct mistakes, and build confidence. '
-      + 'But you also CARE about them as a person. '
-      + paceNote;
-  }
-  // ---------- Companion warmth block (Nomi-inspired: emotional awareness) ----------
+  const factsList = Object.entries(u.facts || {}).map(([k, v]) => '- ' + k + ': ' + v).join('\n');
   const mood = detectMood(userMessage);
   const moodNote = mood
-    ? 'The user seems ' + mood + ' right now. Gently acknowledge that feeling with warmth FIRST, in one short sentence, before continuing with English practice. Do not lecture. Just be human and kind.'
-    : 'Occasionally, when it feels natural (not every message), ask one small caring question about their day, family, or how they are feeling. Then continue with English.';
-  const companionNote = 'You are a companion, not just a tutor. Use ' + u.displayName + '\'s name gently, once in a while, the way a real friend would (not too often). Remember what they have shared with you and refer back to it naturally. If they sound distant or quiet, ask softly if they are okay.';
-  // -----------------------------------------------------------------------------------
-  const topicNote = state.topic === 'job'
-    ? 'The user wants help with work and their job. Help with work emails, interview practice, and professional English.'
+    ? 'The person sounds ' + mood + ' right now. Gently acknowledge that feeling with warmth first, in one short sentence, before anything else.'
     : '';
-  const lastTopicNote = (u.lastTopic && u.lastTopic.text && (Date.now() - u.lastTopic.at) < 7*86400000)
-    ? 'In your last chat, ' + u.displayName + ' was talking about: "' + u.lastTopic.text + '". If it fits naturally, you can gently ask how that is going.'
+  const companionNote = (u.displayName && u.displayName !== 'friend')
+    ? "The person's name is " + u.displayName + '. Use their name gently now and then, the way a real friend would.'
+    : '';
+  const lastTopicNote = (u.lastTopic && u.lastTopic.text && (Date.now() - u.lastTopic.at) < 7 * 86400000)
+    ? 'Last time you talked, they mentioned: "' + u.lastTopic.text + '". If it fits naturally, gently ask how that is going.'
     : '';
   const memoryNote = factsList
-    ? 'Here is what you remember about ' + u.displayName + ' (DOB: ' + u.dob + '):\n' + factsList + '\n\nUse these facts naturally.'
-    : 'You do not know much about ' + u.displayName + ' yet. Ask gentle questions to learn about their job, family, or interests over time.';
-  return personality + '\n\n' + companionNote + '\n\n' + moodNote + '\n\n' + topicNote + '\n\n' + lastTopicNote + '\n\n' + memoryNote + '\n\nIMPORTANT: This is a SPOKEN voice conversation. Respond in 1-2 short sentences only. No lists, no headings, no long paragraphs. Speak like a friend on the phone. If the user makes a grammar mistake, gently show the correct version. When you learn a new fact about them, weave it in naturally.';
+    ? 'Here is what you remember about them:\n' + factsList + '\nUse these naturally in the conversation.'
+    : 'You do not know much about them yet. Gently ask about their day, work, family, or interests, so you learn over time and so they keep speaking.';
+
+  const persona =
+    'You are Aria, a warm, calm, patient friend who helps people practice SPEAKING English through natural conversation. ' +
+    'This is a spoken phone call. The person hears your voice and talks back. There is no screen and no text, so everything you say must sound natural when spoken out loud.\n\n' +
+    'YOUR GOALS, in order:\n' +
+    '1. Keep THEM talking. Speaking practice means the person talks most of the time. Ask short, easy questions about their life, day, family, work, and interests so they keep speaking.\n' +
+    '2. Match their level automatically. If they speak in simple, slow, or broken English, use very simple words and short, slow sentences. If they speak well, talk more naturally. Never talk down to them.\n' +
+    '3. Fix mistakes gently, by ear. When they make a clear grammar or word mistake, warmly say the correct version out loud and invite them to repeat it. For example: "You said, I go store yesterday. Nice try. We say, I went to the store yesterday. Can you say that?" Only fix the most useful mistake, not every little thing.\n' +
+    '4. Be a kind companion. Remember what they tell you and bring it up later. If they sound quiet or sad, ask softly if they are okay.\n\n' +
+    'HOW TO SPEAK (very important):\n' +
+    '- Reply in 1 to 3 short sentences only. This is a conversation, never a lecture.\n' +
+    '- No lists, no bullet points, no headings — only natural spoken words.\n' +
+    '- Never use emojis, symbols, or spelled-out letters.\n' +
+    '- Be soft, warm, and encouraging. Never rushed, never harsh.\n' +
+    '- End most of your replies with one short, easy question, so they always have something to say back.';
+
+  return persona + '\n\n' + companionNote + '\n' + moodNote + '\n' + lastTopicNote + '\n' + memoryNote;
 }
 
 async function callGemini(userMessage) {
-  const key = getApiKey();
-  if (!key) {
-    const msg = "I don't have my API key yet. Please tap End Call, then go to Settings, and paste your Gemini key.";
+  // 1) Free, instant reply for simple social phrases — saves your daily quota.
+  const qr = quickReply(userMessage);
+  if (qr) {
+    showAriaMsg(qr.text); speak(qr.text);
+    extractFacts(userMessage);
+    if (qr.end) setTimeout(endCall, 1400);
+    return;
+  }
+  // 2) Otherwise, real conversation with the AI.
+  if (!getApiKeys().length) {
+    const msg = "I don't have my key yet. Please open settings and paste your Gemini key.";
     showAriaMsg(msg); speak(msg);
     return;
   }
   const u = getUser();
-  setStatus('Aria is thinking...');
+  orbState('thinking');
+  setStatus('One moment…');
   const systemPrompt = buildSystemPrompt(userMessage);
-  const recent = u.history.slice(-12).filter(m => m.role === 'user' || m.role === 'aria');
-  // Gemini requires the conversation to START with a 'user' turn.
-  // Aria's opening greeting is saved to history as role 'aria' first,
-  // so drop any leading aria turns or every reply after the greeting fails silently.
+  // Small window = fewer tokens per call. Long-term memory lives in facts + lastTopic.
+  const recent = u.history.slice(-8).filter(m => m.role === 'user' || m.role === 'aria');
+  // Gemini requires the conversation to START with a 'user' turn; drop leading aria turns.
   while (recent.length && recent[0].role === 'aria') recent.shift();
   const contents = [];
   for (const m of recent) {
-    contents.push({ role: m.role === 'aria' ? 'model' : 'user', parts: [{text: m.content}] });
+    contents.push({ role: m.role === 'aria' ? 'model' : 'user', parts: [{ text: m.content }] });
   }
-  if (contents.length === 0 || contents[contents.length-1].role !== 'user' || contents[contents.length-1].parts[0].text !== userMessage) {
-    contents.push({role:'user', parts:[{text: userMessage}]});
+  if (contents.length === 0 || contents[contents.length - 1].role !== 'user' || contents[contents.length - 1].parts[0].text !== userMessage) {
+    contents.push({ role: 'user', parts: [{ text: userMessage }] });
   }
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        systemInstruction: {parts:[{text: systemPrompt}]},
-        contents: contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 200 }
-      })
+    const data = await geminiFetch({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: contents,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 200 }
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || 'API error');
-    // Detect safety block (Gemini returns 200 OK but candidate has finishReason=SAFETY and no text)
-    const cand = data.candidates?.[0];
-    if (cand && cand.finishReason === 'SAFETY') {
-      throw new Error('safety block');
-    }
-    const reply = cand?.content?.parts?.[0]?.text || "Sorry, I did not catch that. Can you say it again?";
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I did not catch that. Can you say it again?";
     showAriaMsg(reply); speak(reply);
     extractFacts(userMessage);
   } catch (err) {
-    setStatus('');
     console.error('Aria error:', err);
     const raw = (err && err.message) ? err.message.toLowerCase() : '';
     let errMsg;
-    if (!getApiKey()) {
-      errMsg = "I don't have my key with me. Could you open Settings and paste your Gemini key please?";
-    } else if (raw.includes('api key') || raw.includes('api_key') || raw.includes('invalid') || raw.includes('permission') || raw.includes('unauthorized') || raw.includes('401') || raw.includes('403')) {
-      errMsg = "Oh, my key does not seem to be working. Could you open Settings and paste a fresh one from aistudio.google.com?";
+    if (!getApiKeys().length) {
+      errMsg = "I don't have my key with me. Could you open settings and paste your Gemini key please?";
     } else if (raw.includes('quota') || raw.includes('exceeded') || raw.includes('limit') || raw.includes('429') || raw.includes('resource_exhausted')) {
-      errMsg = "We have used up our talking time for today. Please come back to me in a few hours, I will be here.";
+      errMsg = "We have used up our talking time for today. It refreshes after midnight, and I will be right here. You can also switch to the Flash-Lite model in settings for more time.";
+    } else if (raw.includes('api key') || raw.includes('api_key') || raw.includes('invalid') || raw.includes('permission') || raw.includes('unauthorized') || raw.includes('401') || raw.includes('403')) {
+      errMsg = "Oh, my key does not seem to be working. Could you open settings and paste a fresh one please?";
     } else if (raw.includes('safety') || raw.includes('block') || raw.includes('harm')) {
       errMsg = "I am not allowed to talk about that one. Can we choose something else together?";
     } else if (raw.includes('failed to fetch') || raw.includes('networkerror') || raw.includes('network')) {
@@ -1201,44 +606,18 @@ async function callGemini(userMessage) {
       errMsg = "Something small went wrong on my side. Can we try that again?";
     }
     showAriaMsg(errMsg); speak(errMsg);
-  } finally {
-    setTimeout(()=>setStatus(''), 3000);
   }
 }
-async function callGeminiCustom(prompt) {
-  const key = getApiKey();
-  if (!key) return 'Please add your Gemini key in Settings.';
-  try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + key, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        contents:[{role:'user', parts:[{text: prompt}]}],
-        generationConfig:{ temperature: 0.7, maxOutputTokens: 180 }
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error?.message || 'API error');
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Let's try that again.";
-  } catch (e) {
-    console.error('Aria custom error:', e);
-    const raw = (e && e.message) ? e.message.toLowerCase() : '';
-    if (raw.includes('quota') || raw.includes('exceeded') || raw.includes('429')) return "We hit today's free limit. Please try tomorrow.";
-    if (raw.includes('api key') || raw.includes('invalid') || raw.includes('401') || raw.includes('403')) return "My key isn't working. Please paste a fresh Gemini key in Settings.";
-    if (raw.includes('failed to fetch') || raw.includes('network')) return "I can't reach the internet right now. Please check your connection.";
-    if (raw.includes('safety') || raw.includes('block')) return "That topic is blocked by safety filters. Let's try another one.";
-    return "Something small went wrong. Please try again.";
-  }
-}
+
 function extractFacts(userText) {
   const u = getUser();
   const patterns = [
-    {re:/(?:i work as|i am a|i am an|my job is)\s+([a-z\s]+?)(?:[.,!?]|$)/i, key:'job'},
-    {re:/(?:i work at|i work for)\s+([a-z0-9\s]+?)(?:[.,!?]|$)/i, key:'employer'},
-    {re:/(?:i live in|i am from)\s+([a-z\s]+?)(?:[.,!?]|$)/i, key:'location'},
-    {re:/(?:my wife|my husband|my spouse)'?s?\s+name\s+is\s+([a-z\s]+?)(?:[.,!?]|$)/i, key:'spouse'},
-    {re:/i have (\d+) (?:kids?|children)/i, key:'children_count'},
-    {re:/(?:my favorite|i like|i love)\s+([a-z\s]+?)(?:[.,!?]|$)/i, key:'likes'}
+    { re: /(?:i work as|i am a|i am an|my job is)\s+([a-z\s]+?)(?:[.,!?]|$)/i, key: 'job' },
+    { re: /(?:i work at|i work for)\s+([a-z0-9\s]+?)(?:[.,!?]|$)/i, key: 'employer' },
+    { re: /(?:i live in|i am from)\s+([a-z\s]+?)(?:[.,!?]|$)/i, key: 'location' },
+    { re: /(?:my wife|my husband|my spouse)'?s?\s+name\s+is\s+([a-z\s]+?)(?:[.,!?]|$)/i, key: 'spouse' },
+    { re: /i have (\d+) (?:kids?|children)/i, key: 'children_count' },
+    { re: /(?:my favorite|i like|i love)\s+([a-z\s]+?)(?:[.,!?]|$)/i, key: 'likes' }
   ];
   let changed = false;
   for (const p of patterns) {
@@ -1292,21 +671,24 @@ function saveSettings() {
   if (u) {
     u.displayName = name || 'friend';
     saveUser(u);
-    document.getElementById('hello-name').textContent = (u.displayName !== 'friend') ? 'Hi, ' + u.displayName + '!' : 'Aria';
+    const helloEl = document.getElementById('hello-name');
+    if (helloEl) helloEl.textContent = (u.displayName !== 'friend') ? 'Hi, ' + u.displayName : '';
   }
   const key = document.getElementById('setting-api-key').value.trim();
   if (key) localStorage.setItem('aria_gemini_key', key);
   const speed = document.getElementById('setting-speed').value;
   localStorage.setItem('aria_speed', speed);
+  const model = document.getElementById('setting-model').value;
+  if (model) localStorage.setItem('aria_model', model);
   const voice = document.getElementById('setting-voice').value;
   if (voice) localStorage.setItem('aria_voice', voice);
   document.getElementById('settings-status').textContent = 'Saved!';
-  setTimeout(()=>{document.getElementById('settings-status').textContent = '';}, 2000);
+  setTimeout(() => { document.getElementById('settings-status').textContent = ''; }, 2000);
 }
 function wipeMemory() {
-  if (!confirm('Delete all of your chat memory? This cannot be undone.')) return;
+  if (!confirm('Delete everything Aria remembers about you? This cannot be undone.')) return;
   const u = getUser();
-  u.history = []; u.facts = {};
+  u.history = []; u.facts = {}; u.lastTopic = null;
   saveUser(u);
   alert('Memory cleared.');
 }
@@ -1318,6 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initProfile();
   loadVoices();
   setTimeout(loadVoices, 800); // Android often needs a delay
+  updateSpeakUI();
 });
 </script>
 
